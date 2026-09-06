@@ -123,6 +123,15 @@ Running log for the Elm port of TanStack Table core. See `SPEC.md` for the plan.
   (`cellSpanIndex cfg state model`) because there is no memoisation.
   Selection reads take `SelectionRows { prePaginated, current }`.
 
+## Performance (merged tree, `make bench`, node 24, `--optimize`, 7 runs)
+
+| case | shape | min | median | target |
+| --- | --- | --- | --- | --- |
+| `coreRowModel` flat | 10,000 rows | 10.7 ms | 15.1 ms | under 100 ms |
+| `coreRowModel` nested | 2,500 parents × 3 children (10,000 rows) | 11.3 ms | 12.4 ms | under 100 ms |
+| full pipeline | 10,000 rows, `includesString` filter, one sort, page 50 | 89.8 ms | 94.3 ms | under 500 ms |
+| full pipeline with grouping | same plus 20 groups, `sum` and `mean`, expand all | 150.7 ms | 166.3 ms | under 500 ms |
+
 ## Coverage table
 
 Filled in per phase. Cases are counted as `it(` / `test(` calls in the vitest
