@@ -73,6 +73,24 @@ Running log for the Elm port of TanStack Table core. See `SPEC.md` for the plan.
   and sorting via `getValue`; `Pagination.elm` carries its own `expandRows`
   that must be unified with the expanded row model.
 
+### Phase 5: Selection, pinning, ordering, visibility, sizing
+
+- Commit `22181af` (merge). Tests: 297 ported / 287 passing / 20 excluded of
+  317 (6.3%); 10 cases are written but held back in `pendingIntegration`
+  lists until phase 4 lands (they need grouped or expanded rows).
+- Contract changes: `Config.enableRowSelection`, `enableMultiRowSelection`,
+  `enableSubRowSelection`, `enableRowPinning` are `Row row -> Bool`;
+  `withRowSelection` keeps its name. Column ordering composes in one place,
+  `Column.orderColumns` (`allColumns → columnOrder → groupedColumnMode →
+  visibility → pin split`). `visibleLeafColumns` is not pin-ordered, matching
+  TanStack; the pin partition lives in the header seam and `visibleCells`.
+- Merge fix: `selectRange` / `canSelectRange` walk the pre-pagination rows in
+  display order (`rowsInDisplayOrder`), as TanStack's `getRowsInDisplayOrder`,
+  so a shift-click range can span pages; `canSelectRange` gained a `State`
+  argument.
+- Biggest risk for phase 4's merge: grouped-column reordering must stay in
+  `orderGroupedColumns` only.
+
 ## Coverage table
 
 Filled in per phase. Cases are counted as `it(` / `test(` calls in the vitest
@@ -88,7 +106,7 @@ file. Full per-case exclusion lists live in `reports/phase-N.md`.
 | `unit/core/columns/constructColumn.test.ts` | 2 | 1 | 1 | 1 |
 | `unit/core/columns/coreColumnsFeature.utils.test.ts` | 13 | 11 | 11 | 2 |
 | `unit/core/headers/constructHeader.test.ts` | 3 | 1 | 1 | 2 |
-| `unit/core/headers/coreHeadersFeature.utils.test.ts` | 13 | 10 | 10 | 3 |
+| `unit/core/headers/coreHeadersFeature.utils.test.ts` | 13 | 12 | 12 | 1 |
 | `unit/core/rows/constructRow.test.ts` | 2 | 1 | 1 | 1 |
 | `unit/core/rows/coreRowsFeature.utils.test.ts` | 21 | 18 | 18 | 3 |
 | `unit/core/row-models/coreRowModelsFeature.utils.test.ts` | 17 | 10 | 10 | 7 |
@@ -106,6 +124,15 @@ file. Full per-case exclusion lists live in `reports/phase-N.md`.
 | `unit/features/row-sorting/rowSortingFeature.utils.test.ts` | 52 | 49 | 49 | 3 |
 | `implementation/features/row-pagination/createPaginatedRowModel.test.ts` | 16 | 15 | 15 | 1 |
 | `unit/features/row-pagination/rowPaginationFeature.utils.test.ts` | 51 | 44 | 44 | 7 |
+| `unit/features/column-visibility/columnVisibilityFeature.utils.test.ts` | 27 | 25 | 25 | 2 |
+| `unit/features/column-ordering/columnOrderingFeature.utils.test.ts` | 22 | 22 | 22 | 0 |
+| `unit/features/column-pinning/columnPinningFeature.utils.test.ts` | 56 | 56 | 56 | 0 |
+| `unit/features/column-sizing/columnSizingFeature.utils.test.ts` | 38 | 38 | 38 | 0 |
+| `implementation/features/row-selection/rowSelectionFeature.test.ts` | 34 | 29 | 26 | 5 |
+| `implementation/features/row-selection/rowSelectionRange.test.ts` | 23 | 17 | 11 | 6 |
+| `unit/features/row-selection/rowSelectionFeature.utils.test.ts` | 58 | 51 | 51 | 7 |
+| `unit/features/row-pinning/rowPinningFeature.utils.test.ts` | 37 | 37 | 37 | 0 |
+| `implementation/features/row-pinning/rowPinningFeature.test.ts` | 20 | 20 | 19 | 0 |
 
 ## Semantic differences
 
@@ -121,7 +148,12 @@ items: no fn registries so `getSortFn` / `getFilterFn` return functions and
 "registered name" cases collapse; `resetX` returns to the feature default,
 not a caller's `initialState`; no per-row `columnFiltersMeta`; `Infinity`
 page size is `unlimitedPageSize`; custom filters receive the raw filter
-value; sorted and paginated `rowsById` are the pre-stage maps as in TanStack).
+value; sorted and paginated `rowsById` are the pre-stage maps as in TanStack)
+and `reports/phase-5.md` (10 items: `ColumnRegion` type instead of an
+optional position argument; `left` / `right` state names with TanStack's
+`start` / `end` only in header ids; the shift-click anchor is caller state;
+pinned row lists take both the pre-pagination model and the page; no
+`position` field mutated onto rows or cells).
 
 ## Renames
 
