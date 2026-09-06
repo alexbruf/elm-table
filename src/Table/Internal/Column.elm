@@ -28,6 +28,8 @@ module Table.Internal.Column exposing
     , withAggregationFn
     , withCustomFilter
     , withCustomSort
+    , withEnableCellSelection
+    , withEnableCellSpanning
     , withEnableColumnFilter
     , withEnableGlobalFilter
     , withEnableGrouping
@@ -47,6 +49,9 @@ module Table.Internal.Column exposing
     , withSortDescFirst
     , withSortFn
     , withSortUndefined
+    , withSpanColumns
+    , withSpanRows
+    , withSpanRowsWhen
     )
 
 {-| Column construction, column accessors, and the column lists a table
@@ -60,7 +65,7 @@ Ports `core/columns/constructColumn.ts` and
 import Dict exposing (Dict)
 import Table.AggregationFn exposing (AggregationFn)
 import Table.FilterFn exposing (FilterFn)
-import Table.Internal.Types exposing (Column(..), ColumnFields, Config, GroupedColumnMode(..), Row, SortUndefined, State)
+import Table.Internal.Types exposing (Column(..), ColumnFields, Config, GroupedColumnMode(..), Row, RowSpanContext, SortUndefined, SpanRows(..), State)
 import Table.SortFn exposing (SortFn)
 import Table.Value exposing (Value)
 
@@ -130,6 +135,10 @@ emptyFields columnId =
     , size = Nothing
     , minSize = Nothing
     , maxSize = Nothing
+    , enableCellSpanning = True
+    , spanColumns = Nothing
+    , spanRows = Nothing
+    , enableCellSelection = True
     }
 
 
@@ -309,6 +318,47 @@ withMinSize px =
 withMaxSize : Float -> Column row -> Column row
 withMaxSize px =
     update (\f -> { f | maxSize = Just px })
+
+
+{-| Merge adjacent rows whose value for this column is equal. Ports
+`spanRows: true`.
+-}
+withSpanRows : Column row -> Column row
+withSpanRows =
+    update (\f -> { f | spanRows = Just SpanRowsOnEqualValues })
+
+
+{-| Decide per candidate row whether it joins the vertical run anchored at
+`anchorRow`. Ports `spanRows` in its predicate form.
+-}
+withSpanRowsWhen : (RowSpanContext row -> Bool) -> Column row -> Column row
+withSpanRowsWhen fn =
+    update (\f -> { f | spanRows = Just (SpanRowsWhen fn) })
+
+
+{-| Make this column's cell span that many columns in the given row, counted
+in render order and clamped to the end of the cell's pinned region. Ports
+`spanColumns`.
+-}
+withSpanColumns : (Row row -> Int) -> Column row -> Column row
+withSpanColumns fn =
+    update (\f -> { f | spanColumns = Just fn })
+
+
+{-| Turn this column off for cell spanning even when the table allows it.
+Ports the column-level `enableCellSpanning`.
+-}
+withEnableCellSpanning : Bool -> Column row -> Column row
+withEnableCellSpanning enabled =
+    update (\f -> { f | enableCellSpanning = enabled })
+
+
+{-| Allow or forbid selecting the cells of this column. Ports the
+column-level `enableCellSelection`.
+-}
+withEnableCellSelection : Bool -> Column row -> Column row
+withEnableCellSelection enabled =
+    update (\f -> { f | enableCellSelection = enabled })
 
 
 

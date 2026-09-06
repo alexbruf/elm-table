@@ -88,10 +88,34 @@ module Table
     , getIsRowPinned, getRowPinnedIndex, getCanPinRow
     , isSomeRowsPinned, isSomeRowsPinnedTop, isSomeRowsPinnedBottom
     , topRows, bottomRows, centerRows
+    , CellSpanIndex, RowSpanContext
+    , withCellSpanning, withEnableCellSpanning
+    , withSpanRows, withSpanRowsWhen, withSpanColumns, spanAllColumns
+    , columnCanSpan, cellSpanIndex, cellSpanIndexRowIds, cellSpanIndexRowSpans
+    , cellRowSpan, cellColSpan, cellIsCovered
+    , CellSelectionRange, CellSelectionOperation, CellSelectionMode, CellSelectionBounds
+    , CellSelectionEdges, CellDirection, SelectionRows
+    , includeCells, excludeCells
+    , replaceSelection, includeSelection, excludeSelection
+    , cellUp, cellDown, cellLeft, cellRight
+    , withCellSelection, withCellSelectionWhen
+    , withCellRangeSelection, withMultiCellRangeSelection, withEnableCellSelection
+    , cellRange, setCellSelection, clearCellSelection
+    , selectCellRange, selectCellRangeWith, selectAllCells, setFocusedCell
+    , selectCell, extendCellSelectionTo, toggleCellSelection
+    , moveCellSelection, extendCellSelection
+    , cellCanSelect, cellIsSelected, cellIsFocused, cellTabIndex, cellSelectionEdges
+    , focusedCell, cellSelectionBounds, cellSelectionMergeBounds, cellSelectionColumnIndexes
+    , selectedCellIds, selectedCellCount, selectedCellRangesData
+    , cellSelectionRowIds, cellSelectionColumnIds
+    , intersectCellSelectionBounds, subtractCellSelectionBounds, addCellSelectionBounds
+    , mergeAdjacentCellSelectionBounds, expandCellSelectionBounds
+    , applyCellSelectionBoundsOperations
     -- Phase 3
     -- Phase 4
-    -- Phase 5 entries are the block above: elm-format hoists these markers
-    -- to the end of the exposing list.
+    -- Phase 5
+    -- Phase 6 entries are the two blocks above, phase 5's the block before
+    -- them: elm-format hoists these markers to the end of the exposing list.
     )
 
 {-| Headless table state and row-model pipeline: a port of TanStack Table
@@ -302,6 +326,60 @@ they come with one function per variant.
 @docs isSomeRowsPinned, isSomeRowsPinnedTop, isSomeRowsPinnedBottom
 @docs topRows, bottomRows, centerRows
 
+
+# Phase 6
+
+
+## Phase 6 types
+
+@docs CellSpanIndex, RowSpanContext
+
+
+## Cell spanning
+
+@docs withCellSpanning, withEnableCellSpanning
+@docs withSpanRows, withSpanRowsWhen, withSpanColumns, spanAllColumns
+@docs columnCanSpan, cellSpanIndex, cellSpanIndexRowIds, cellSpanIndexRowSpans
+@docs cellRowSpan, cellColSpan, cellIsCovered
+
+
+## Cell selection types
+
+@docs CellSelectionRange, CellSelectionOperation, CellSelectionMode, CellSelectionBounds
+@docs CellSelectionEdges, CellDirection, SelectionRows
+@docs includeCells, excludeCells
+@docs replaceSelection, includeSelection, excludeSelection
+@docs cellUp, cellDown, cellLeft, cellRight
+
+
+## Cell selection options
+
+@docs withCellSelection, withCellSelectionWhen
+@docs withCellRangeSelection, withMultiCellRangeSelection, withEnableCellSelection
+
+
+## Cell selection transitions
+
+@docs cellRange, setCellSelection, clearCellSelection
+@docs selectCellRange, selectCellRangeWith, selectAllCells, setFocusedCell
+@docs selectCell, extendCellSelectionTo, toggleCellSelection
+@docs moveCellSelection, extendCellSelection
+
+
+## Cell selection queries
+
+@docs cellCanSelect, cellIsSelected, cellIsFocused, cellTabIndex, cellSelectionEdges
+@docs focusedCell, cellSelectionBounds, cellSelectionMergeBounds, cellSelectionColumnIndexes
+@docs selectedCellIds, selectedCellCount, selectedCellRangesData
+@docs cellSelectionRowIds, cellSelectionColumnIds
+
+
+## Cell selection geometry
+
+@docs intersectCellSelectionBounds, subtractCellSelectionBounds, addCellSelectionBounds
+@docs mergeAdjacentCellSelectionBounds, expandCellSelectionBounds
+@docs applyCellSelectionBoundsOperations
+
 -}
 
 import Array exposing (Array)
@@ -309,6 +387,9 @@ import Dict exposing (Dict)
 import Set exposing (Set)
 import Table.AggregationFn exposing (AggregationFn)
 import Table.FilterFn exposing (FilterFn)
+import Table.Internal.CellSelection as CellSelection
+import Table.Internal.CellSelectionGeometry as CellSelectionGeometry
+import Table.Internal.CellSpanning as CellSpanning
 import Table.Internal.Column as Column
 import Table.Internal.ColumnOrdering as ColumnOrdering
 import Table.Internal.ColumnPinning as ColumnPinning
@@ -2673,3 +2754,533 @@ bottomRows =
 centerRows : State -> RowModel row -> List (Row row)
 centerRows =
     RowPinning.centerRows
+
+
+
+-- PHASE 6
+
+
+{-| The cell span index of the rows a caller renders. Build it with
+[`cellSpanIndex`](#cellSpanIndex) and read it with
+[`cellRowSpan`](#cellRowSpan), [`cellColSpan`](#cellColSpan), and
+[`cellIsCovered`](#cellIsCovered).
+-}
+type alias CellSpanIndex =
+    Types.CellSpanIndex
+
+
+{-| What a `withSpanRowsWhen` predicate is given for each candidate row. The
+run is anchored: `anchorRow` is the row whose cell renders the merged
+content, and every later row of the run is tested against it.
+-}
+type alias RowSpanContext row =
+    Types.RowSpanContext row
+
+
+{-| Allow or forbid cell spanning for the whole table. `False` makes every
+cell report a span of `1` and builds no span index.
+-}
+withCellSpanning : Bool -> Config row -> Config row
+withCellSpanning =
+    Config.withCellSpanning
+
+
+{-| Turn one column off for cell spanning even when the table allows it.
+-}
+withEnableCellSpanning : Bool -> Column row -> Column row
+withEnableCellSpanning =
+    Column.withEnableCellSpanning
+
+
+{-| Merge adjacent rows whose value for this column is equal into one
+vertically spanning cell. `Null` never merges under this comparison; use
+[`withSpanRowsWhen`](#withSpanRowsWhen) to opt in.
+-}
+withSpanRows : Column row -> Column row
+withSpanRows =
+    Column.withSpanRows
+
+
+{-| Decide per candidate row whether it joins the vertical run anchored at
+`anchorRow`.
+-}
+withSpanRowsWhen : (RowSpanContext row -> Bool) -> Column row -> Column row
+withSpanRowsWhen =
+    Column.withSpanRowsWhen
+
+
+{-| Make this column's cell span that many columns in the given row, counted
+in render order. A span is clamped to the end of the cell's pinned region, so
+it never crosses the left, center, or right boundary.
+-}
+withSpanColumns : (Row row -> Int) -> Column row -> Column row
+withSpanColumns =
+    Column.withSpanColumns
+
+
+{-| The stand-in for `Infinity` in a [`withSpanColumns`](#withSpanColumns)
+callback: "the rest of my region".
+-}
+spanAllColumns : Int
+spanAllColumns =
+    CellSpanning.spanAllColumns
+
+
+{-| Does this column take part in cell spanning? A column opting out wins
+over the table option.
+-}
+columnCanSpan : Config row -> Column row -> Bool
+columnCanSpan =
+    CellSpanning.canSpan
+
+
+{-| Build the span index of the rows a caller renders. Pass the row model you
+render, which is normally [`paginatedRowModel`](#paginatedRowModel); row
+pinning is read off the state.
+-}
+cellSpanIndex : Config row -> State -> RowModel row -> CellSpanIndex
+cellSpanIndex =
+    CellSpanning.spanIndex
+
+
+{-| The row ids the index was built from, in render order.
+-}
+cellSpanIndexRowIds : CellSpanIndex -> List String
+cellSpanIndexRowIds =
+    CellSpanning.spanIndexRowIds
+
+
+{-| The vertical runs per column id, indexed by render-order row position.
+Only columns with at least one run longer than one row appear; a missing
+column means every cell in it spans exactly one row.
+-}
+cellSpanIndexRowSpans : CellSpanIndex -> Dict String (List Int)
+cellSpanIndexRowSpans =
+    CellSpanning.spanIndexRowSpans
+
+
+{-| How many rows this cell spans: `1` when it does not span, and `0` when a
+spanning cell above covers it. Never render a `0`; skip the cell instead.
+-}
+cellRowSpan : CellSpanIndex -> Cell -> Int
+cellRowSpan =
+    CellSpanning.cellRowSpan
+
+
+{-| How many columns this cell spans: `1` when it does not span, and `0` when
+another cell's column span covers it.
+-}
+cellColSpan : CellSpanIndex -> Cell -> Int
+cellColSpan =
+    CellSpanning.cellColSpan
+
+
+{-| Does another cell's span cover this cell? Covered cells carry no content
+of their own and must not be rendered.
+-}
+cellIsCovered : CellSpanIndex -> Cell -> Bool
+cellIsCovered =
+    CellSpanning.cellIsCovered
+
+
+{-| One rectangular cell selection, stored as its two defining corners. The
+anchor stays put while the focus corner moves during a shift-extend or a
+drag, so the pair carries more than a normalized rectangle would. Build one
+with [`cellRange`](#cellRange).
+-}
+type alias CellSelectionRange =
+    Types.CellSelectionRange
+
+
+{-| How a range changes the selection the ranges before it produced.
+-}
+type alias CellSelectionOperation =
+    Types.CellSelectionOperation
+
+
+{-| Whether a write replaces the selection, adds a rectangle, or subtracts
+one.
+-}
+type alias CellSelectionMode =
+    Types.CellSelectionMode
+
+
+{-| A range resolved into inclusive display-order indexes. Rows are positions
+in [`rowsInDisplayOrder`](#rowsInDisplayOrder); columns are positions in the
+visible leaf columns in render order.
+-}
+type alias CellSelectionBounds =
+    Types.CellSelectionBounds
+
+
+{-| Which sides of a selected cell sit on the outer boundary of the
+selection, for drawing a spreadsheet-style outline.
+-}
+type alias CellSelectionEdges =
+    Types.CellSelectionEdges
+
+
+{-| One step of keyboard navigation.
+-}
+type alias CellDirection =
+    Types.CellDirection
+
+
+{-| The two row models cell selection reads: `prePaginated` fixes the
+display-order indexes a range resolves against, so a range spans pages, and
+`current` is the page a caller renders, which bounds keyboard navigation and
+cell spanning. Without pagination both are the same model.
+-}
+type alias SelectionRows row =
+    Types.SelectionRows row
+
+
+{-| A range that adds its rectangle to the selection.
+-}
+includeCells : CellSelectionOperation
+includeCells =
+    Types.IncludeCells
+
+
+{-| A range that subtracts its rectangle from the selection.
+-}
+excludeCells : CellSelectionOperation
+excludeCells =
+    Types.ExcludeCells
+
+
+{-| Replace the whole selection with this rectangle.
+-}
+replaceSelection : CellSelectionMode
+replaceSelection =
+    Types.ReplaceSelection
+
+
+{-| Add this rectangle alongside the existing ranges.
+-}
+includeSelection : CellSelectionMode
+includeSelection =
+    Types.IncludeSelection
+
+
+{-| Subtract this rectangle from the existing ranges.
+-}
+excludeSelection : CellSelectionMode
+excludeSelection =
+    Types.ExcludeSelection
+
+
+{-| Move or extend one row up.
+-}
+cellUp : CellDirection
+cellUp =
+    Types.CellUp
+
+
+{-| Move or extend one row down.
+-}
+cellDown : CellDirection
+cellDown =
+    Types.CellDown
+
+
+{-| Move or extend one column left.
+-}
+cellLeft : CellDirection
+cellLeft =
+    Types.CellLeft
+
+
+{-| Move or extend one column right.
+-}
+cellRight : CellDirection
+cellRight =
+    Types.CellRight
+
+
+{-| Allow or forbid cell selection for the whole table.
+-}
+withCellSelection : Bool -> Config row -> Config row
+withCellSelection =
+    Config.withCellSelection
+
+
+{-| Decide per cell whether it can be selected. The predicate replaces the
+boolean, exactly like TanStack's `enableCellSelection` in its function form.
+-}
+withCellSelectionWhen : (Cell -> Bool) -> Config row -> Config row
+withCellSelectionWhen =
+    Config.withCellSelectionWhen
+
+
+{-| Allow or forbid extending a cell selection into a range, which is what
+shift-click and drag do.
+-}
+withCellRangeSelection : Bool -> Config row -> Config row
+withCellRangeSelection =
+    Config.withCellRangeSelection
+
+
+{-| Allow or forbid adding and subtracting further rectangles, which is what
+ctrl-click and meta-click do.
+-}
+withMultiCellRangeSelection : Bool -> Config row -> Config row
+withMultiCellRangeSelection =
+    Config.withMultiCellRangeSelection
+
+
+{-| Allow or forbid selecting the cells of one column.
+-}
+withEnableCellSelection : Bool -> Column row -> Column row
+withEnableCellSelection =
+    Column.withEnableCellSelection
+
+
+{-| A range from its two corners, taken as an inclusion:
+`cellRange anchorRowId anchorColumnId focusRowId focusColumnId`.
+-}
+cellRange : String -> String -> String -> String -> CellSelectionRange
+cellRange =
+    CellSelection.cellRange
+
+
+{-| Replace the whole `cellSelection` slice.
+-}
+setCellSelection : List CellSelectionRange -> State -> State
+setCellSelection =
+    CellSelection.setCellSelection
+
+
+{-| Drop every range. This is TanStack's `resetCellSelection(table, true)`.
+-}
+clearCellSelection : State -> State
+clearCellSelection =
+    CellSelection.clearCellSelection
+
+
+{-| Select a rectangle, replacing the selection.
+-}
+selectCellRange : CellSelectionRange -> State -> State
+selectCellRange =
+    CellSelection.selectRange
+
+
+{-| Select a rectangle with replace, include, or exclude semantics.
+-}
+selectCellRangeWith : CellSelectionMode -> CellSelectionRange -> State -> State
+selectCellRangeWith =
+    CellSelection.selectRangeWith
+
+
+{-| Select every selectable cell as one range.
+-}
+selectAllCells : Config row -> SelectionRows row -> State -> State
+selectAllCells =
+    CellSelection.selectAll
+
+
+{-| Collapse the selection to a single cell at the given coordinates.
+-}
+setFocusedCell : String -> String -> State -> State
+setFocusedCell =
+    CellSelection.setFocusedCell
+
+
+{-| Start a selection at one cell, replacing whatever was selected. This is
+the state half of the `mousedown` handler with no modifier key.
+-}
+selectCell : Config row -> Cell -> State -> State
+selectCell =
+    CellSelection.selectCell
+
+
+{-| Move the active range's focus corner to this cell, keeping its anchor and
+its operation. This is the state half of a shift-`mousedown` and of a drag's
+`mouseenter`. With no active range, or with
+[`withCellRangeSelection`](#withCellRangeSelection) off, it selects the cell
+instead.
+-}
+extendCellSelectionTo : Config row -> Cell -> State -> State
+extendCellSelectionTo =
+    CellSelection.extendSelectionTo
+
+
+{-| Add a rectangle at this cell alongside the existing ranges, subtracting
+instead when the cell is already selected. This is the state half of a ctrl-
+or meta-`mousedown`. With
+[`withMultiCellRangeSelection`](#withMultiCellRangeSelection) off, it selects
+the cell instead.
+-}
+toggleCellSelection : Config row -> SelectionRows row -> Cell -> State -> State
+toggleCellSelection =
+    CellSelection.toggleSelection
+
+
+{-| Move the selection one step, collapsing it to a single cell. Columns that
+cannot be selected are skipped over, and a merged cell is one stop. With
+nothing selected this selects the first selectable cell.
+-}
+moveCellSelection : Config row -> SelectionRows row -> CellDirection -> State -> State
+moveCellSelection =
+    CellSelection.moveSelection
+
+
+{-| Extend the active range one step, keeping its anchor fixed.
+-}
+extendCellSelection : Config row -> SelectionRows row -> CellDirection -> State -> State
+extendCellSelection =
+    CellSelection.extendSelection
+
+
+{-| Can this cell currently be selected? A column opting out wins over the
+table option.
+-}
+cellCanSelect : Config row -> Cell -> Bool
+cellCanSelect =
+    CellSelection.canSelect
+
+
+{-| Does this cell fall inside the final positive selection?
+-}
+cellIsSelected : Config row -> State -> SelectionRows row -> Cell -> Bool
+cellIsSelected =
+    CellSelection.isSelected
+
+
+{-| Is this cell the active cell, the anchor of the most recent range? An
+exclusion's active cell is focused even though it is not selected.
+-}
+cellIsFocused : State -> Cell -> Bool
+cellIsFocused =
+    CellSelection.isFocused
+
+
+{-| `0` for the focused cell and `-1` otherwise, for a roving tabindex.
+-}
+cellTabIndex : State -> Cell -> Int
+cellTabIndex =
+    CellSelection.tabIndex
+
+
+{-| Which sides of this cell sit on the outer boundary of the selection. All
+four are `False` when the cell is not selected.
+-}
+cellSelectionEdges : Config row -> State -> SelectionRows row -> Cell -> CellSelectionEdges
+cellSelectionEdges =
+    CellSelection.edges
+
+
+{-| The active cell: the anchor of the most recent range.
+-}
+focusedCell : Config row -> State -> SelectionRows row -> Maybe Cell
+focusedCell =
+    CellSelection.focusedCell
+
+
+{-| The final positive selection as disjoint, inclusive display-order index
+rectangles, after every include and exclude is applied. A range whose corners
+no longer resolve is omitted rather than clamped, so it contributes nothing
+while staying in state.
+-}
+cellSelectionBounds : Config row -> State -> SelectionRows row -> List CellSelectionBounds
+cellSelectionBounds =
+    CellSelection.selectionBounds
+
+
+{-| The merged-cell rectangles of the rendered rows, in the same index space.
+Selection rectangles grow to enclose these, so a merged cell is always
+entirely selected or entirely unselected.
+-}
+cellSelectionMergeBounds : Config row -> State -> SelectionRows row -> List CellSelectionBounds
+cellSelectionMergeBounds =
+    CellSelection.mergeBounds
+
+
+{-| The render-order index of every visible column id.
+-}
+cellSelectionColumnIndexes : Config row -> State -> Dict String Int
+cellSelectionColumnIndexes =
+    CellSelection.columnIndexes
+
+
+{-| The unique ids of all selected cells, in row-major order. Cells another
+cell's span covers are skipped, so the ids match what renders.
+-}
+selectedCellIds : Config row -> State -> SelectionRows row -> List String
+selectedCellIds =
+    CellSelection.selectedCellIds
+
+
+{-| How many cells are selected. A merged cell counts once.
+-}
+selectedCellCount : Config row -> State -> SelectionRows row -> Int
+selectedCellCount =
+    CellSelection.selectedCellCount
+
+
+{-| Each final positive region's values as a row-major grid, indexed as
+region, then row, then column. Covered cells keep their values so the grid
+stays rectangular; serializing it is the caller's job.
+-}
+selectedCellRangesData : Config row -> State -> SelectionRows row -> List (List (List Value))
+selectedCellRangesData =
+    CellSelection.selectedRangesData
+
+
+{-| The ids of all rows the selection intersects.
+-}
+cellSelectionRowIds : Config row -> State -> SelectionRows row -> List String
+cellSelectionRowIds =
+    CellSelection.rowIds
+
+
+{-| The ids of all columns the selection intersects.
+-}
+cellSelectionColumnIds : Config row -> State -> SelectionRows row -> List String
+cellSelectionColumnIds =
+    CellSelection.columnIds
+
+
+{-| The overlap of two rectangles, or `Nothing` when they are disjoint.
+-}
+intersectCellSelectionBounds : CellSelectionBounds -> CellSelectionBounds -> Maybe CellSelectionBounds
+intersectCellSelectionBounds =
+    CellSelectionGeometry.intersect
+
+
+{-| The parts of the first rectangle the second does not cover, as up to four
+disjoint rectangles.
+-}
+subtractCellSelectionBounds : CellSelectionBounds -> CellSelectionBounds -> List CellSelectionBounds
+subtractCellSelectionBounds =
+    CellSelectionGeometry.subtract
+
+
+{-| Add a rectangle to a disjoint set, keeping the set disjoint.
+-}
+addCellSelectionBounds : List CellSelectionBounds -> CellSelectionBounds -> List CellSelectionBounds
+addCellSelectionBounds =
+    CellSelectionGeometry.add
+
+
+{-| Fuse rectangles that share a full side into one, to a fixed point.
+-}
+mergeAdjacentCellSelectionBounds : List CellSelectionBounds -> List CellSelectionBounds
+mergeAdjacentCellSelectionBounds =
+    CellSelectionGeometry.mergeAdjacent
+
+
+{-| Grow a rectangle until it fully contains every merged-cell rectangle it
+touches.
+-}
+expandCellSelectionBounds : CellSelectionBounds -> List CellSelectionBounds -> CellSelectionBounds
+expandCellSelectionBounds =
+    CellSelectionGeometry.expand
+
+
+{-| Run ordered include and exclude operations, giving the final positive
+selection as disjoint rectangles.
+-}
+applyCellSelectionBoundsOperations : List ( CellSelectionOperation, CellSelectionBounds ) -> List CellSelectionBounds
+applyCellSelectionBoundsOperations =
+    CellSelectionGeometry.applyOperations
