@@ -209,8 +209,7 @@ included, exactly like TanStack's `row.getAllCells()`.
 -}
 getAllCells : Config row -> State -> Row row -> List Cell
 getAllCells cfg state row =
-    Column.leafColumns cfg
-        |> Column.orderColumns state
+    Column.orderedLeafColumns cfg state
         |> List.map (toCell cfg row)
 
 

@@ -15,7 +15,7 @@ module Table.Internal.Config exposing
 import Dict
 import Set
 import Table.FilterFn exposing (FilterFn)
-import Table.Internal.Types exposing (Column, Config, Expanded(..), GroupedColumnMode(..), SizeDefaults, State)
+import Table.Internal.Types exposing (Column, Config, Expanded(..), GroupedColumnMode(..), Row, SizeDefaults, State)
 import Table.Value exposing (Value(..))
 
 
@@ -46,10 +46,10 @@ config columns =
     , groupedColumnMode = GroupedColumnsReorder
     , enableExpanding = True
     , paginateExpandedRows = True
-    , enableRowSelection = \_ -> True
-    , enableMultiRowSelection = True
-    , enableSubRowSelection = True
-    , enableRowPinning = True
+    , enableRowSelection = always True
+    , enableMultiRowSelection = always True
+    , enableSubRowSelection = always True
+    , enableRowPinning = always True
     , keepPinnedRows = True
     , enableColumnPinning = True
     , enableHiding = True
@@ -119,7 +119,7 @@ withGlobalFilterFn fn cfg =
 
 {-| Decide per row whether it can be selected.
 -}
-withRowSelection : (row -> Bool) -> Config row -> Config row
+withRowSelection : (Row row -> Bool) -> Config row -> Config row
 withRowSelection fn cfg =
     { cfg | enableRowSelection = fn }
 
