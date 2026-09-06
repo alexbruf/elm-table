@@ -91,6 +91,25 @@ Running log for the Elm port of TanStack Table core. See `SPEC.md` for the plan.
 - Biggest risk for phase 4's merge: grouped-column reordering must stay in
   `orderGroupedColumns` only.
 
+### Phase 4: Grouping, aggregation, expansion
+
+- Commit `HEAD` of the phase 4 merge. Tests: 113 ported / 113 passing / 11
+  excluded of 124 (8.9%); `createPaginatedRowModel.test.ts` rises to 16 / 0
+  excluded. The 10 held-back phase 5 integration cases are wired in and pass.
+- Contract changes: `Config.getRowCanExpand`, `Config.getIsRowExpanded`,
+  `Column.maxAggregationDepth` added; `Column.getGroupingValue` is
+  `row -> Int -> Value`; `Column.aggregationFn = Nothing` means `'auto'`
+  (`sum` for numbers, `extent` for dates). `Pagination.elm` reuses
+  `Expanding.expandList`, removing the duplicate `expandRows`.
+- Load-bearing decisions: group rows carry an explicit `aggregatedValues`
+  entry for every leaf column (`Null` included) so `getValue` never falls
+  through to the first leaf's accessor; `Null` grouping keys land under the
+  key `"null"`, so TanStack's `null` and `undefined` buckets merge; group ids
+  are `columnId:value` chained with `>`.
+- Bench: pipeline with grouping (10,000 rows, one filter, 20 groups, `sum` and
+  `mean`, `expandAll`, one sort, page 50) 149.4 ms min / 156.3 ms median
+  against a 500 ms target.
+
 ## Coverage table
 
 Filled in per phase. Cases are counted as `it(` / `test(` calls in the vitest
@@ -122,17 +141,24 @@ file. Full per-case exclusion lists live in `reports/phase-N.md`.
 | `unit/features/global-filtering/globalFilteringFeature.utils.test.ts` | 20 | 18 | 18 | 2 |
 | `implementation/features/row-sorting/createSortedRowModel.test.ts` | 25 | 25 | 25 | 0 |
 | `unit/features/row-sorting/rowSortingFeature.utils.test.ts` | 52 | 49 | 49 | 3 |
-| `implementation/features/row-pagination/createPaginatedRowModel.test.ts` | 16 | 15 | 15 | 1 |
+| `implementation/features/row-pagination/createPaginatedRowModel.test.ts` | 16 | 16 | 16 | 0 |
 | `unit/features/row-pagination/rowPaginationFeature.utils.test.ts` | 51 | 44 | 44 | 7 |
 | `unit/features/column-visibility/columnVisibilityFeature.utils.test.ts` | 27 | 25 | 25 | 2 |
 | `unit/features/column-ordering/columnOrderingFeature.utils.test.ts` | 22 | 22 | 22 | 0 |
 | `unit/features/column-pinning/columnPinningFeature.utils.test.ts` | 56 | 56 | 56 | 0 |
 | `unit/features/column-sizing/columnSizingFeature.utils.test.ts` | 38 | 38 | 38 | 0 |
-| `implementation/features/row-selection/rowSelectionFeature.test.ts` | 34 | 29 | 26 | 5 |
-| `implementation/features/row-selection/rowSelectionRange.test.ts` | 23 | 17 | 11 | 6 |
+| `implementation/features/row-selection/rowSelectionFeature.test.ts` | 34 | 29 | 29 | 5 |
+| `implementation/features/row-selection/rowSelectionRange.test.ts` | 23 | 17 | 17 | 6 |
 | `unit/features/row-selection/rowSelectionFeature.utils.test.ts` | 58 | 51 | 51 | 7 |
 | `unit/features/row-pinning/rowPinningFeature.utils.test.ts` | 37 | 37 | 37 | 0 |
-| `implementation/features/row-pinning/rowPinningFeature.test.ts` | 20 | 20 | 19 | 0 |
+| `implementation/features/row-pinning/rowPinningFeature.test.ts` | 20 | 20 | 20 | 0 |
+| `implementation/features/column-grouping/createGroupedRowModel.test.ts` | 15 | 15 | 15 | 0 |
+| `implementation/features/column-grouping/columnGroupingFeature.test.ts` | 1 | 1 | 1 | 0 |
+| `unit/features/column-grouping/columnGroupingFeature.utils.test.ts` | 24 | 24 | 24 | 0 |
+| `implementation/features/row-aggregation/rowAggregationFeature.test.ts` | 18 | 11 | 11 | 7 |
+| `implementation/features/row-expanding/createExpandedRowModel.test.ts` | 13 | 11 | 11 | 2 |
+| `implementation/features/row-expanding/rowExpandingFeature.test.ts` | 2 | 2 | 2 | 0 |
+| `unit/features/row-expanding/rowExpandingFeature.utils.test.ts` | 51 | 49 | 49 | 2 |
 
 ## Semantic differences
 
@@ -153,7 +179,11 @@ and `reports/phase-5.md` (10 items: `ColumnRegion` type instead of an
 optional position argument; `left` / `right` state names with TanStack's
 `start` / `end` only in header ids; the shift-click anchor is caller state;
 pinned row lists take both the pre-pagination model and the page; no
-`position` field mutated onto rows or cells).
+`position` field mutated onto rows or cells) and `reports/phase-4.md` (11
+items, chiefly: explicit `Null` aggregated values on group rows; `"null"`
+grouping key; group `original` is the first leaf's; keyed
+`aggregationFn: [...]` and `getAggregationValue` overrides have no
+counterpart).
 
 ## Renames
 
