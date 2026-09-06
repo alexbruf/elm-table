@@ -146,7 +146,8 @@ noChildren =
 suite : Test
 suite =
     describe "row selection ranges"
-        [ test "establishes an anchor and selects forward and reverse inclusive ranges" <|
+        [ describe "integration with the grouped, expanded and paginated stages" pendingIntegration
+        , test "establishes an anchor and selects forward and reverse inclusive ranges" <|
             \_ ->
                 let
                     forward : Table.State
@@ -485,10 +486,13 @@ pendingIntegration =
                     paged index =
                         { state | pagination = { pageIndex = index, pageSize = 2 } }
 
+                    -- Range selection takes the pre-pagination row model, as
+                    -- TanStack's getRowsInDisplayOrder does, so the page in
+                    -- state does not limit the range.
                     display : Table.State -> Table.RowModel TestRow
                     display current =
                         Table.coreRowModelFromList cfg current flatData
-                            |> Table.paginatedRowModel cfg current
+                            |> Table.expandedRowModel cfg current
                 in
                 state
                     |> click cfg (display (paged 0)) "0" True
@@ -511,22 +515,23 @@ pendingIntegration =
                             , pagination = { pageIndex = 0, pageSize = 1 }
                         }
 
+                    configFor : Bool -> Table.Config TestRow
+                    configFor paginateExpandedRows =
+                        { cfg | paginateExpandedRows = paginateExpandedRows }
+
+                    -- The pre-pagination model: when paginateExpandedRows is
+                    -- False the expanded stage leaves the tree folded and
+                    -- rowsInDisplayOrder unfolds it, exactly as in TanStack.
                     display : Bool -> Table.RowModel TestRow
                     display paginateExpandedRows =
-                        let
-                            config : Table.Config TestRow
-                            config =
-                                { cfg | paginateExpandedRows = paginateExpandedRows }
-                        in
-                        Table.coreRowModelFromList config current data
-                            |> Table.expandedRowModel config current
-                            |> Table.paginatedRowModel config current
+                        Table.coreRowModelFromList (configFor paginateExpandedRows) current data
+                            |> Table.expandedRowModel (configFor paginateExpandedRows) current
 
                     run : Bool -> List String
                     run paginateExpandedRows =
                         current
-                            |> click cfg (display paginateExpandedRows) "child-1" True
-                            |> shiftClickWith noChildren cfg (display paginateExpandedRows) "child-1" "z" True
+                            |> click (configFor paginateExpandedRows) (display paginateExpandedRows) "child-1" True
+                            |> shiftClickWith noChildren (configFor paginateExpandedRows) (display paginateExpandedRows) "child-1" "z" True
                             |> selected
                 in
                 Expect.all

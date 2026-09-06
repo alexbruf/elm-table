@@ -81,7 +81,8 @@ withRow rowId fn =
 suite : Test
 suite =
     describe "rowPinningFeature"
-        [ describe "table methods"
+        [ describe "integration with the grouped, expanded and paginated stages" pendingIntegration
+        , describe "table methods"
             [ describe "setRowPinning"
                 [ test "should call onRowPinningChange when invoked" <|
                     \_ ->

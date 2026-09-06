@@ -41,6 +41,7 @@ module Table.Internal.Column exposing
     , withGetUniqueValues
     , withHeader
     , withInvertSorting
+    , withMaxAggregationDepth
     , withMaxSize
     , withMinSize
     , withSize
@@ -122,6 +123,7 @@ emptyFields columnId =
     , enableColumnFilter = True
     , enableGlobalFilter = Nothing
     , aggregationFn = Nothing
+    , maxAggregationDepth = 0
     , getGroupingValue = Nothing
     , getUniqueValues = Nothing
     , enableGrouping = True
@@ -256,10 +258,19 @@ withAggregationFn fn =
 
 
 {-| Read the value this column groups by, when it differs from the accessor.
+The second argument is the row's index, as in TanStack.
 -}
-withGetGroupingValue : (row -> Value) -> Column row -> Column row
+withGetGroupingValue : (row -> Int -> Value) -> Column row -> Column row
 withGetGroupingValue fn =
     update (\f -> { f | getGroupingValue = Just fn })
+
+
+{-| How far below each aggregated row the aggregation looks for its values.
+`0`, the default, aggregates the rows themselves.
+-}
+withMaxAggregationDepth : Int -> Column row -> Column row
+withMaxAggregationDepth levels =
+    update (\f -> { f | maxAggregationDepth = Basics.max 0 levels })
 
 
 {-| Read the faceting values of a row, when one cell holds several.

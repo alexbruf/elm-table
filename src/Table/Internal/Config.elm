@@ -5,6 +5,8 @@ module Table.Internal.Config exposing
     , withDefaultColumn
     , withGetRowId
     , withGlobalFilterFn
+    , withIsRowExpanded
+    , withRowCanExpand
     , withRowSelection
     , withSubRows
     )
@@ -47,6 +49,8 @@ config columns =
     , enableGrouping = True
     , groupedColumnMode = GroupedColumnsReorder
     , enableExpanding = True
+    , getRowCanExpand = Nothing
+    , getIsRowExpanded = Nothing
     , paginateExpandedRows = True
     , pageCount = Nothing
     , rowCount = Nothing
@@ -119,6 +123,21 @@ withDefaultColumn sizes cfg =
 withGlobalFilterFn : FilterFn -> Config row -> Config row
 withGlobalFilterFn fn cfg =
     { cfg | globalFilterFn = Just fn }
+
+
+{-| Decide per row whether it can be expanded, overriding `enableExpanding`
+and the "has sub-rows" rule.
+-}
+withRowCanExpand : (Row row -> Bool) -> Config row -> Config row
+withRowCanExpand fn cfg =
+    { cfg | getRowCanExpand = Just fn }
+
+
+{-| Decide per row whether it is expanded, overriding `State.expanded`.
+-}
+withIsRowExpanded : (Row row -> Bool) -> Config row -> Config row
+withIsRowExpanded fn cfg =
+    { cfg | getIsRowExpanded = Just fn }
 
 
 {-| Decide per row whether it can be selected.

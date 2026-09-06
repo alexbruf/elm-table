@@ -47,6 +47,17 @@ module Table
     , getPageCount, getPageOptions, getRowCount
     , getCanPreviousPage, getCanNextPage, getCanLastPage
     , previousPage, nextPage, firstPage, lastPage, unlimitedPageSize
+    , withRowCanExpand, withIsRowExpanded, withMaxAggregationDepth
+    , getCanGroup, getIsGrouped, getGroupedIndex
+    , toggleGrouping, setGrouping, resetGrouping
+    , rowIsGrouped, rowGroupingValueFor, cellIsGrouped, cellIsPlaceholder
+    , preGroupedRowModel
+    , getAutoAggregationFn, getAggregationFn
+    , aggregationValue, aggregationValueOf, cellIsAggregated
+    , preExpandedRowModel
+    , getCanExpand, getIsExpanded, getIsAllParentsExpanded
+    , getCanSomeRowsExpand, getIsSomeRowsExpanded, getIsAllRowsExpanded, getExpandedDepth
+    , toggleExpanded, toggleAllRowsExpanded, setExpanded, resetExpanded
     , ColumnPinPosition, ColumnRegion, RowPinPosition, SubRowSelection
     , SelectOptions, PinRowOptions, PinnedRowsSource, PinnedColumns
     , pinnedLeft, pinnedRight, columnUnpinned
@@ -88,10 +99,7 @@ module Table
     , getIsRowPinned, getRowPinnedIndex, getCanPinRow
     , isSomeRowsPinned, isSomeRowsPinnedTop, isSomeRowsPinnedBottom
     , topRows, bottomRows, centerRows
-    -- Phase 3
-    -- Phase 4
-    -- Phase 5 entries are the block above: elm-format hoists these markers
-    -- to the end of the exposing list.
+    -- Phase 6
     )
 
 {-| Headless table state and row-model pipeline: a port of TanStack Table
@@ -222,6 +230,43 @@ filtered row model for the same job.
 
 # Phase 4
 
+Grouping, aggregation, and expansion. The grouped row model replaces the rows
+with one group row per distinct value of every column in `State.grouping`,
+recursively; the expanded row model splices the sub-rows of the expanded rows
+back into the row list.
+
+Group rows carry [`rowGroupingColumnId`](#rowGroupingColumnId),
+[`rowGroupingValue`](#rowGroupingValue), [`rowLeafRows`](#rowLeafRows), and
+[`rowAggregatedValues`](#rowAggregatedValues), and their ids are
+`"columnId:groupingValue"` joined to the parent group's id with `>`.
+
+
+## Grouping and expanding configuration
+
+@docs withRowCanExpand, withIsRowExpanded, withMaxAggregationDepth
+
+
+## Grouping state
+
+@docs getCanGroup, getIsGrouped, getGroupedIndex
+@docs toggleGrouping, setGrouping, resetGrouping
+@docs rowIsGrouped, rowGroupingValueFor, cellIsGrouped, cellIsPlaceholder
+@docs preGroupedRowModel
+
+
+## Aggregation
+
+@docs getAutoAggregationFn, getAggregationFn
+@docs aggregationValue, aggregationValueOf, cellIsAggregated
+
+
+## Expanded state
+
+@docs preExpandedRowModel
+@docs getCanExpand, getIsExpanded, getIsAllParentsExpanded
+@docs getCanSomeRowsExpand, getIsSomeRowsExpanded, getIsAllRowsExpanded, getExpandedDepth
+@docs toggleExpanded, toggleAllRowsExpanded, setExpanded, resetExpanded
+
 
 # Phase 5
 
@@ -309,6 +354,7 @@ import Dict exposing (Dict)
 import Set exposing (Set)
 import Table.AggregationFn exposing (AggregationFn)
 import Table.FilterFn exposing (FilterFn)
+import Table.Internal.Aggregation as Aggregation
 import Table.Internal.Column as Column
 import Table.Internal.ColumnOrdering as ColumnOrdering
 import Table.Internal.ColumnPinning as ColumnPinning
@@ -716,8 +762,10 @@ withAggregationFn =
 
 
 {-| Read the value this column groups by, when it differs from the accessor.
+The second argument is the row's index, mirroring TanStack's
+`getGroupingValue(originalRow, index, row)`.
 -}
-withGetGroupingValue : (row -> Value) -> Column row -> Column row
+withGetGroupingValue : (row -> Int -> Value) -> Column row -> Column row
 withGetGroupingValue =
     Column.withGetGroupingValue
 
@@ -1735,6 +1783,284 @@ lastPage =
 unlimitedPageSize : Int
 unlimitedPageSize =
     Pagination.unlimitedPageSize
+
+
+
+-- PHASE 4
+--
+-- Grouping, aggregation, and expansion. Bodies live in
+-- src/Table/Internal/{Grouping,Aggregation,Expanding}.elm.
+--
+-- Every reader that has to resolve an 'auto' aggregation function takes a
+-- RowModel row to sample, the way phase 3's 'auto' filter and sort readers
+-- do; TanStack samples the core row model for the same job.
+
+
+{-| Set a per-row override for "can this row expand?", TanStack's
+`getRowCanExpand`. It wins over `Config.enableExpanding` and over the
+"has sub-rows" rule.
+-}
+withRowCanExpand : (Row row -> Bool) -> Config row -> Config row
+withRowCanExpand =
+    Config.withRowCanExpand
+
+
+{-| Set a per-row override for "is this row expanded?", TanStack's
+`getIsRowExpanded`. It wins over `State.expanded` outright.
+-}
+withIsRowExpanded : (Row row -> Bool) -> Config row -> Config row
+withIsRowExpanded =
+    Config.withIsRowExpanded
+
+
+{-| How far below an aggregated row its aggregation looks for values.
+`0`, the default, aggregates the rows themselves; `1` aggregates their
+children. TanStack's `maxAggregationDepth`.
+-}
+withMaxAggregationDepth : Int -> Column row -> Column row
+withMaxAggregationDepth =
+    Column.withMaxAggregationDepth
+
+
+
+-- GROUPING STATE
+
+
+{-| Can this column be grouped? Grouping has to be enabled on the table and
+on the column, and the column needs either an accessor or a
+[`withGetGroupingValue`](#withGetGroupingValue).
+-}
+getCanGroup : Config row -> String -> Bool
+getCanGroup =
+    Grouping.getCanGroup
+
+
+{-| Is this column in `State.grouping`?
+-}
+getIsGrouped : State -> String -> Bool
+getIsGrouped =
+    Grouping.getIsGrouped
+
+
+{-| Where this column sits in `State.grouping`, or `-1`.
+-}
+getGroupedIndex : State -> String -> Int
+getGroupedIndex =
+    Grouping.getGroupedIndex
+
+
+{-| Add this column to `State.grouping`, or drop it and keep the rest in
+order. TanStack's `column_toggleGrouping` does not check
+[`getCanGroup`](#getCanGroup) either; its click handler does.
+-}
+toggleGrouping : String -> State -> State
+toggleGrouping =
+    Grouping.toggleGrouping
+
+
+{-| Replace `State.grouping`.
+-}
+setGrouping : List String -> State -> State
+setGrouping =
+    Grouping.setGrouping
+
+
+{-| Empty `State.grouping`.
+-}
+resetGrouping : State -> State
+resetGrouping =
+    Grouping.resetGrouping
+
+
+{-| Was this row built by the grouped row model?
+-}
+rowIsGrouped : Row row -> Bool
+rowIsGrouped =
+    Grouping.rowIsGrouped
+
+
+{-| The value this row groups by for one column:
+[`withGetGroupingValue`](#withGetGroupingValue) when the column has one, the
+cell value otherwise.
+-}
+rowGroupingValueFor : Config row -> Row row -> String -> Value
+rowGroupingValueFor =
+    Grouping.groupingValueFor
+
+
+{-| Is this the cell of the column its group row groups by? `Cell` carries
+its row and column ids, so this takes the row and the column id.
+-}
+cellIsGrouped : State -> Row row -> String -> Bool
+cellIsGrouped =
+    Grouping.cellIsGrouped
+
+
+{-| Is this the cell of a grouped column that is not this row's own grouping
+column? Those cells render as placeholders.
+-}
+cellIsPlaceholder : State -> Row row -> String -> Bool
+cellIsPlaceholder =
+    Grouping.cellIsPlaceholder
+
+
+{-| The row model grouping runs on: the filtered one.
+-}
+preGroupedRowModel : Config row -> State -> RowModel row -> RowModel row
+preGroupedRowModel =
+    filteredRowModel
+
+
+
+-- AGGREGATION
+
+
+{-| The aggregation function a column with no
+[`withAggregationFn`](#withAggregationFn) gets: `sum` for a numeric column,
+`extent` for a date column, none for anything else. The kind is read off the
+first flat row of the row model handed in.
+-}
+getAutoAggregationFn : Config row -> RowModel row -> String -> Maybe AggregationFn
+getAutoAggregationFn =
+    Aggregation.getAutoAggregationFn
+
+
+{-| The aggregation function of a column: its own, or the automatic one.
+-}
+getAggregationFn : Config row -> RowModel row -> String -> Maybe AggregationFn
+getAggregationFn =
+    Aggregation.getAggregationFn
+
+
+{-| Aggregate one column over the rows of a row model, at the column's own
+[`withMaxAggregationDepth`](#withMaxAggregationDepth). TanStack's
+`column.getAggregationValue()`.
+-}
+aggregationValue : Config row -> RowModel row -> String -> Value
+aggregationValue =
+    Aggregation.aggregationValue
+
+
+{-| Aggregate one column over a chosen row list and depth, TanStack's
+`column.getAggregationValue({ rows, maxDepth })`. The row model is only there
+to resolve an automatic aggregation function.
+-}
+aggregationValueOf :
+    Config row
+    -> RowModel row
+    -> String
+    -> { maxDepth : Int, rows : List (Row row) }
+    -> Value
+aggregationValueOf =
+    Aggregation.aggregationValueOf
+
+
+{-| Is this cell an aggregated one? True on a group row for a column that is
+neither the row's own grouping column nor itself grouped, and that has an
+aggregation function.
+-}
+cellIsAggregated : Config row -> RowModel row -> State -> Row row -> String -> Bool
+cellIsAggregated =
+    Aggregation.cellIsAggregated
+
+
+
+-- EXPANDED STATE
+
+
+{-| The row model expansion runs on: the sorted one.
+-}
+preExpandedRowModel : Config row -> State -> RowModel row -> RowModel row
+preExpandedRowModel =
+    sortedRowModel
+
+
+{-| Can this row expand? [`withRowCanExpand`](#withRowCanExpand) wins,
+otherwise `Config.enableExpanding` has to be on and the row needs sub-rows.
+-}
+getCanExpand : Config row -> Row row -> Bool
+getCanExpand =
+    Expanding.rowCanExpand
+
+
+{-| Is this row expanded? [`withIsRowExpanded`](#withIsRowExpanded) wins,
+otherwise `State.expanded` decides.
+-}
+getIsExpanded : Config row -> State -> Row row -> Bool
+getIsExpanded =
+    Expanding.rowIsExpanded
+
+
+{-| Is every ancestor of this row expanded? The row itself is not considered.
+-}
+getIsAllParentsExpanded : Config row -> State -> RowModel row -> Row row -> Bool
+getIsAllParentsExpanded =
+    Expanding.getIsAllParentsExpanded
+
+
+{-| Can any row of this row model expand? TanStack reads the pre-pagination
+row model here, so controls can reflect rows that are not on this page.
+-}
+getCanSomeRowsExpand : Config row -> RowModel row -> Bool
+getCanSomeRowsExpand =
+    Expanding.getCanSomeRowsExpand
+
+
+{-| Is any row expanded? [`expandAll`](#expandAll) counts.
+-}
+getIsSomeRowsExpanded : State -> Bool
+getIsSomeRowsExpanded =
+    Expanding.getIsSomeRowsExpanded
+
+
+{-| Is every expandable row of this row model expanded? An empty
+`State.expanded` is `False`, and so is one whose ids match no expandable row.
+-}
+getIsAllRowsExpanded : Config row -> State -> RowModel row -> Bool
+getIsAllRowsExpanded =
+    Expanding.getIsAllRowsExpanded
+
+
+{-| The deepest expanded row id, counted in `.`-separated segments.
+-}
+getExpandedDepth : Config row -> State -> RowModel row -> Int
+getExpandedDepth =
+    Expanding.getExpandedDepth
+
+
+{-| Expand or collapse one row. `Nothing` toggles it. Expanding a row that
+cannot expand and any request that matches the current state are no-ops;
+collapsing always applies, so a stale id can be cleaned up.
+
+The row model materialises [`expandAll`](#expandAll) into the ids of the rows
+that can expand before the change lands.
+
+-}
+toggleExpanded : Config row -> RowModel row -> Row row -> Maybe Bool -> State -> State
+toggleExpanded =
+    Expanding.toggleExpanded
+
+
+{-| Expand or collapse every row. `Nothing` toggles on
+[`getIsAllRowsExpanded`](#getIsAllRowsExpanded).
+-}
+toggleAllRowsExpanded : Config row -> RowModel row -> Maybe Bool -> State -> State
+toggleAllRowsExpanded =
+    Expanding.toggleAllRowsExpanded
+
+
+{-| Replace `State.expanded`.
+-}
+setExpanded : Expanded -> State -> State
+setExpanded =
+    Expanding.setExpanded
+
+
+{-| Collapse everything: `State.expanded` back to no ids.
+-}
+resetExpanded : State -> State
+resetExpanded =
+    Expanding.resetExpanded
 
 
 

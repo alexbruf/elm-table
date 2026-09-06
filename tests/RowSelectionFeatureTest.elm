@@ -97,7 +97,8 @@ staticModel =
 suite : Test
 suite =
     describe "rowSelectionFeature"
-        [ describe "selectRowsFn"
+        [ describe "integration with the grouped, expanded and paginated stages" pendingIntegration
+        , describe "selectRowsFn"
             [ test "should only return rows that are selected" <|
                 \_ ->
                     let

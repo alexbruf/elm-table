@@ -58,6 +58,10 @@ type Column row
 
 {-| Everything a column carries. `depth` and `parentId` are stamped by
 `Table.group` when a column is nested, so they never need a table instance.
+
+`getGroupingValue` takes the original datum and the row's index, mirroring
+TanStack's `(originalRow, index, row)`.
+
 -}
 type alias ColumnFields row =
     { id : String
@@ -79,7 +83,8 @@ type alias ColumnFields row =
     , enableColumnFilter : Bool
     , enableGlobalFilter : Maybe Bool
     , aggregationFn : Maybe AggregationFn
-    , getGroupingValue : Maybe (row -> Value)
+    , maxAggregationDepth : Int
+    , getGroupingValue : Maybe (row -> Int -> Value)
     , getUniqueValues : Maybe (row -> List Value)
     , enableGrouping : Bool
     , enableHiding : Bool
@@ -147,6 +152,8 @@ type alias Config row =
     , enableGrouping : Bool
     , groupedColumnMode : GroupedColumnMode
     , enableExpanding : Bool
+    , getRowCanExpand : Maybe (Row row -> Bool)
+    , getIsRowExpanded : Maybe (Row row -> Bool)
     , paginateExpandedRows : Bool
     , pageCount : Maybe Int
     , rowCount : Maybe Int

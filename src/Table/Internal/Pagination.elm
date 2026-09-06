@@ -30,7 +30,8 @@ the manual (server-side) overrides.
 -}
 
 import Set exposing (Set)
-import Table.Internal.Types exposing (Config, Expanded(..), Pagination, Row(..), RowModel, State)
+import Table.Internal.Expanding as Expanding
+import Table.Internal.Types exposing (Config, Pagination, Row(..), RowModel, State)
 
 
 {-| Elm has no `Infinity` for `Int`. This is `Number.MAX_SAFE_INTEGER`, the
@@ -86,39 +87,12 @@ paginatedRowModel cfg state model =
                     pageRows
 
                 else
-                    expandRows state pageRows
+                    Expanding.expandList cfg state pageRows
         in
         { rows = displayed
         , flatRows = flattenUnique displayed
         , rowsById = model.rowsById
         }
-
-
-{-| `expandRows`: splice the sub-rows of every expanded row into the row list
-in place.
--}
-expandRows : State -> List (Row row) -> List (Row row)
-expandRows state rows =
-    List.concatMap (expandRow state) rows
-
-
-expandRow : State -> Row row -> List (Row row)
-expandRow state (Row f) =
-    if not (List.isEmpty f.subRows) && isExpanded state f.id then
-        Row f :: List.concatMap (expandRow state) f.subRows
-
-    else
-        [ Row f ]
-
-
-isExpanded : State -> String -> Bool
-isExpanded state rowId =
-    case state.expanded of
-        ExpandAll ->
-            True
-
-        ExpandedIds ids ->
-            Set.member rowId ids
 
 
 {-| The page rows plus every sub-row below them, each row listed once. The
@@ -159,7 +133,7 @@ rowsInDisplayOrder cfg state model =
         model.rows
 
     else
-        expandRows state model.rows
+        Expanding.expandList cfg state model.rows
 
 
 

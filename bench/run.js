@@ -39,7 +39,7 @@ async function time(command) {
 
 async function main() {
   console.log(await send('prepare'))
-  for (const command of ['flat', 'nested', 'pipeline']) {
+  for (const command of ['flat', 'nested', 'pipeline', 'grouped']) {
     const result = await time(command)
     console.log(
       `${command.padEnd(8)} rows/flatRows/rowsById: ${result.answer}  ` +
