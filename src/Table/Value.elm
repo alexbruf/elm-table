@@ -1,6 +1,6 @@
 module Table.Value exposing
     ( Value(..)
-    , toString, isNull
+    , toString, toNumber, isNull
     )
 
 {-| The one union type for cell values.
@@ -23,7 +23,7 @@ the `extent` / `unique` aggregations can be expressed faithfully.
 
 # Helpers
 
-@docs toString, isNull
+@docs toString, toNumber, isNull
 
 -}
 
@@ -77,6 +77,79 @@ toString value =
 
         Null ->
             ""
+
+
+{-| Coerce a value to a number the way JavaScript's `Number(x)` does.
+
+    toNumber (Number 29) == 29
+
+    toNumber (String "29") == 29
+
+    toNumber (String "") == 0
+
+    toNumber (Bool True) == 1
+
+    toNumber Null == 0
+
+A value that does not coerce, such as `String "abc"`, gives `NaN`, which
+compares `False` against everything just as it does in JavaScript. A `Date`
+coerces to its millisecond timestamp and a one-element `List` coerces to its
+element, both matching `Number(x)`.
+
+-}
+toNumber : Value -> Float
+toNumber value =
+    case value of
+        Number n ->
+            n
+
+        String s ->
+            stringToNumber s
+
+        Bool True ->
+            1
+
+        Bool False ->
+            0
+
+        Date posix ->
+            Basics.toFloat (Time.posixToMillis posix)
+
+        List [] ->
+            0
+
+        List [ item ] ->
+            toNumber item
+
+        List _ ->
+            notANumber
+
+        Null ->
+            0
+
+
+notANumber : Float
+notANumber =
+    sqrt -1
+
+
+stringToNumber : String -> Float
+stringToNumber raw =
+    let
+        trimmed : String
+        trimmed =
+            String.trim raw
+    in
+    if trimmed == "" then
+        0
+
+    else
+        case String.toFloat trimmed of
+            Just n ->
+                n
+
+            Nothing ->
+                notANumber
 
 
 {-| `True` only for `Null`.
