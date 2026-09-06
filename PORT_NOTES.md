@@ -110,6 +110,19 @@ Running log for the Elm port of TanStack Table core. See `SPEC.md` for the plan.
   `mean`, `expandAll`, one sort, page 50) 149.4 ms min / 156.3 ms median
   against a 500 ms target.
 
+### Phase 6: Cell selection and cell spanning
+
+- Merged. Tests: 129 ported / 129 passing / 14 excluded of 143 (9.8%): 7
+  DOM and drag-session handler cases, 5 `autoResetCellSelection`, 2
+  memoization. The two cases that needed grouped and expanded rows pass
+  after the merge.
+- Contract additions: `State.cellSelection`; `Config.enableCellSpanning`,
+  `enableCellSelection`, `cellSelectionFilter`, `enableCellRangeSelection`,
+  `enableMultiCellRangeSelection`; `Column.enableCellSpanning`, `spanColumns`,
+  `spanRows`, `enableCellSelection`. `CellSpanIndex` is an explicit value
+  (`cellSpanIndex cfg state model`) because there is no memoisation.
+  Selection reads take `SelectionRows { prePaginated, current }`.
+
 ## Coverage table
 
 Filled in per phase. Cases are counted as `it(` / `test(` calls in the vitest
@@ -159,6 +172,12 @@ file. Full per-case exclusion lists live in `reports/phase-N.md`.
 | `implementation/features/row-expanding/createExpandedRowModel.test.ts` | 13 | 11 | 11 | 2 |
 | `implementation/features/row-expanding/rowExpandingFeature.test.ts` | 2 | 2 | 2 | 0 |
 | `unit/features/row-expanding/rowExpandingFeature.utils.test.ts` | 51 | 49 | 49 | 2 |
+| `unit/features/cell-spanning/cellSpanningFeature.utils.test.ts` | 13 | 13 | 13 | 0 |
+| `implementation/features/cell-spanning/cellSpanningFeature.test.ts` | 14 | 13 | 13 | 1 |
+| `implementation/features/cell-selection/cellSelectionFeature.test.ts` | 66 | 54 | 54 | 12 |
+| `implementation/features/cell-selection/cellSelectionGeometry.test.ts` | 11 | 11 | 11 | 0 |
+| `implementation/features/cell-selection/cellSelectionRange.test.ts` | 23 | 22 | 22 | 1 |
+| `implementation/features/cell-selection/cellSelectionSpanAware.test.ts` | 16 | 16 | 16 | 0 |
 
 ## Semantic differences
 
