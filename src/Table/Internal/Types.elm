@@ -1,5 +1,13 @@
 module Table.Internal.Types exposing
     ( Cell
+    , CellDirection(..)
+    , CellSelectionBounds
+    , CellSelectionEdges
+    , CellSelectionMode(..)
+    , CellSelectionOperation(..)
+    , CellSelectionRange
+    , CellSpanIndex(..)
+    , CellSpanIndexFields
     , Column(..)
     , ColumnFields
     , ColumnFilter
@@ -21,11 +29,14 @@ module Table.Internal.Types exposing
     , RowModel
     , RowPinPosition(..)
     , RowPinning
+    , RowSpanContext
     , SelectOptions
+    , SelectionRows
     , SizeDefaults
     , SortColumn
     , SortDir(..)
     , SortUndefined(..)
+    , SpanRows(..)
     , State
     , SubRowSelection(..)
     )
@@ -38,6 +49,7 @@ users of the package.
 
 -}
 
+import Array exposing (Array)
 import Dict exposing (Dict)
 import Set exposing (Set)
 import Table.AggregationFn exposing (AggregationFn)
@@ -92,6 +104,31 @@ type alias ColumnFields row =
     , size : Maybe Float
     , minSize : Maybe Float
     , maxSize : Maybe Float
+    , enableCellSpanning : Bool
+    , spanColumns : Maybe (Row row -> Int)
+    , spanRows : Maybe (SpanRows row)
+    , enableCellSelection : Bool
+    }
+
+
+{-| How a column merges adjacent rows. `SpanRowsOnEqualValues` is TanStack's
+`spanRows: true`; `SpanRowsWhen` is the predicate form.
+-}
+type SpanRows row
+    = SpanRowsOnEqualValues
+    | SpanRowsWhen (RowSpanContext row -> Bool)
+
+
+{-| What a `spanRows` predicate is given for each candidate row. Ports
+`RowSpanContext`, minus the `column` and `table` members: there is no table
+instance, and the column is fixed by the call site.
+-}
+type alias RowSpanContext row =
+    { anchorRow : Row row
+    , anchorValue : Value
+    , previousRow : Row row
+    , row : Row row
+    , value : Value
     }
 
 
@@ -165,6 +202,11 @@ type alias Config row =
     , enableColumnPinning : Bool
     , enableHiding : Bool
     , defaultColumn : SizeDefaults
+    , enableCellSpanning : Bool
+    , enableCellSelection : Bool
+    , cellSelectionFilter : Maybe (Cell -> Bool)
+    , enableCellRangeSelection : Bool
+    , enableMultiCellRangeSelection : Bool
     }
 
 
@@ -196,6 +238,80 @@ type alias State =
     , columnPinning : ColumnPinning
     , columnSizing : Dict String Float
     , rowPinning : RowPinning
+    , cellSelection : List CellSelectionRange
+    }
+
+
+{-| One rectangular cell selection, stored as its two defining corners. The
+anchor stays put while the focus corner moves. Ports `CellSelectionRange`;
+TanStack's optional `operation` is required here and defaults to
+`IncludeCells` through `cellRange`.
+-}
+type alias CellSelectionRange =
+    { anchorColumnId : String
+    , anchorRowId : String
+    , focusColumnId : String
+    , focusRowId : String
+    , operation : CellSelectionOperation
+    }
+
+
+{-| How a range changes the selection the ranges before it produced. Ports
+`CellSelectionRangeOperation`.
+-}
+type CellSelectionOperation
+    = IncludeCells
+    | ExcludeCells
+
+
+{-| Whether a write replaces the selection, adds a range, or subtracts one.
+Ports `CellSelectionRangeMode`.
+-}
+type CellSelectionMode
+    = ReplaceSelection
+    | IncludeSelection
+    | ExcludeSelection
+
+
+{-| A range resolved into inclusive display-order indexes. Ports
+`CellSelectionBounds`.
+-}
+type alias CellSelectionBounds =
+    { minRowIndex : Int
+    , maxRowIndex : Int
+    , minColumnIndex : Int
+    , maxColumnIndex : Int
+    }
+
+
+{-| Which sides of a selected cell sit on the outer boundary of the
+selection. Ports `CellSelectionEdges`.
+-}
+type alias CellSelectionEdges =
+    { top : Bool
+    , right : Bool
+    , bottom : Bool
+    , left : Bool
+    }
+
+
+{-| One step of keyboard navigation. Ports `CellSelectionDirection`.
+-}
+type CellDirection
+    = CellUp
+    | CellDown
+    | CellLeft
+    | CellRight
+
+
+{-| The two row models cell selection reads. `prePaginated` fixes the
+display-order indexes a range resolves against, so a range spans pages;
+`current` is the page a caller renders, which bounds keyboard navigation and
+cell spanning.
+-}
+type alias SelectionRows row =
+    { prePaginated : RowModel row
+    , current : RowModel row
     }
 
 
@@ -361,6 +477,29 @@ type alias Cell =
     , columnId : String
     , rowId : String
     , value : Value
+    }
+
+
+{-| The cell span index of the rows a caller renders. Opaque outside the
+package: build it with `Table.cellSpanIndex` and read it with
+`Table.cellRowSpan`, `Table.cellColSpan`, and `Table.cellIsCovered`. Ports
+`CellSpanIndex`.
+-}
+type CellSpanIndex
+    = CellSpanIndex CellSpanIndexFields
+
+
+{-| Everything the span index carries. `rowSpans` is keyed by column id and
+indexed by render-order row position; `colSpans` is keyed by render-order row
+position and indexed by render-order column position.
+-}
+type alias CellSpanIndexFields =
+    { rowIds : List String
+    , rowIndexes : Dict String Int
+    , columnIds : List String
+    , columnIndexes : Dict String Int
+    , rowSpans : Dict String (Array Int)
+    , colSpans : Dict Int (Array Int)
     }
 
 

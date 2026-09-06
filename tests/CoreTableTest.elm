@@ -35,5 +35,6 @@ suite =
                     , columnPinning = { left = [], right = [] }
                     , columnSizing = Dict.empty
                     , rowPinning = { top = [], bottom = [] }
+                    , cellSelection = []
                     }
         ]

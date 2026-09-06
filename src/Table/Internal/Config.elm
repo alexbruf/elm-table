@@ -2,10 +2,15 @@ module Table.Internal.Config exposing
     ( config
     , initialState
     , rowIdFor
+    , withCellRangeSelection
+    , withCellSelection
+    , withCellSelectionWhen
+    , withCellSpanning
     , withDefaultColumn
     , withGetRowId
     , withGlobalFilterFn
     , withIsRowExpanded
+    , withMultiCellRangeSelection
     , withRowCanExpand
     , withRowSelection
     , withSubRows
@@ -17,7 +22,7 @@ module Table.Internal.Config exposing
 import Dict
 import Set
 import Table.FilterFn exposing (FilterFn)
-import Table.Internal.Types exposing (Column, Config, Expanded(..), GroupedColumnMode(..), Row, SizeDefaults, State)
+import Table.Internal.Types exposing (Cell, Column, Config, Expanded(..), GroupedColumnMode(..), Row, SizeDefaults, State)
 import Table.Value exposing (Value(..))
 
 
@@ -62,6 +67,11 @@ config columns =
     , enableColumnPinning = True
     , enableHiding = True
     , defaultColumn = defaultSizes
+    , enableCellSpanning = True
+    , enableCellSelection = True
+    , cellSelectionFilter = Nothing
+    , enableCellRangeSelection = True
+    , enableMultiCellRangeSelection = True
     }
 
 
@@ -94,6 +104,7 @@ initialState =
     , columnPinning = { left = [], right = [] }
     , columnSizing = Dict.empty
     , rowPinning = { top = [], bottom = [] }
+    , cellSelection = []
     }
 
 
@@ -138,6 +149,47 @@ withRowCanExpand fn cfg =
 withIsRowExpanded : (Row row -> Bool) -> Config row -> Config row
 withIsRowExpanded fn cfg =
     { cfg | getIsRowExpanded = Just fn }
+
+
+{-| Allow or forbid cell spanning for the whole table. `False` makes every
+cell report a span of `1`. Ports the `enableCellSpanning` table option.
+-}
+withCellSpanning : Bool -> Config row -> Config row
+withCellSpanning enabled cfg =
+    { cfg | enableCellSpanning = enabled }
+
+
+{-| Allow or forbid cell selection for the whole table. Ports
+`enableCellSelection` in its boolean form.
+-}
+withCellSelection : Bool -> Config row -> Config row
+withCellSelection enabled cfg =
+    { cfg | enableCellSelection = enabled }
+
+
+{-| Decide per cell whether it can be selected. Ports `enableCellSelection`
+in its predicate form; the predicate is consulted on top of the table and
+column flags.
+-}
+withCellSelectionWhen : (Cell -> Bool) -> Config row -> Config row
+withCellSelectionWhen fn cfg =
+    { cfg | cellSelectionFilter = Just fn }
+
+
+{-| Allow or forbid extending a cell selection into a range. Ports
+`enableCellRangeSelection`.
+-}
+withCellRangeSelection : Bool -> Config row -> Config row
+withCellRangeSelection enabled cfg =
+    { cfg | enableCellRangeSelection = enabled }
+
+
+{-| Allow or forbid adding and subtracting further rectangles. Ports
+`enableMultiCellRangeSelection`.
+-}
+withMultiCellRangeSelection : Bool -> Config row -> Config row
+withMultiCellRangeSelection enabled cfg =
+    { cfg | enableMultiCellRangeSelection = enabled }
 
 
 {-| Decide per row whether it can be selected.
