@@ -53,6 +53,26 @@ Running log for the Elm port of TanStack Table core. See `SPEC.md` for the plan.
 - Biggest risk for phase 3: `Nothing` filter fn means `'auto'`; auto-detection
   and resolve-once placement are phase 3's job.
 
+### Phase 3: Filtering, faceting, sorting, pagination
+
+- Commit `19d6dfe`. Tests: 231 ported / 231 passing / 25 excluded of 256
+  (9.8%). Side effect: `filterFns.test.ts` rises to 133 ported (2 excluded)
+  and `coreRowModelsFeature.utils.test.ts` to 10 ported (7 excluded).
+- Contract changes: `Column.sortUndefined`, `enableMultiSort`,
+  `enableGlobalFilter` and `Config.sortDescFirst` became `Maybe` (TanStack
+  distinguishes unset from `false`); `Config` gained `enableFilters`,
+  `getColumnCanGlobalFilter`, `pageCount`, `rowCount`; new abstract `SortDir`
+  (`sortAsc` / `sortDesc`).
+- API notes: `getIsSorted` returns `Maybe SortDir`; `setColumnFilter` and
+  `toggleSort` take a `RowModel row` because `autoRemove` and the automatic
+  first sort direction are data-derived, as in TanStack.
+- Bench: full pipeline (10,000 rows, one `includesString` filter, one sort,
+  page size 50) 86.2 ms min / 94.7 ms median, down from 242 / 336 ms after
+  resolving the column reader once per stage instead of per row.
+- Biggest risk for phase 4: group rows feed `aggregatedValues` to filtering
+  and sorting via `getValue`; `Pagination.elm` carries its own `expandRows`
+  that must be unified with the expanded row model.
+
 ## Coverage table
 
 Filled in per phase. Cases are counted as `it(` / `test(` calls in the vitest
@@ -61,7 +81,7 @@ file. Full per-case exclusion lists live in `reports/phase-N.md`.
 | vitest file | cases | ported | passing | excluded |
 | --- | --- | --- | --- | --- |
 | `unit/fns/sortFns.test.ts` | 41 | 41 | 41 | 0 |
-| `unit/fns/filterFns.test.ts` | 135 | 130 | 130 | 5 |
+| `unit/fns/filterFns.test.ts` | 135 | 133 | 133 | 2 |
 | `unit/fns/aggregationFns.test.ts` | 8 | 7 | 7 | 1 |
 | `implementation/core/row-models/createCoreRowModel.test.ts` | 18 | 14 | 14 | 4 |
 | `implementation/core/row-models/rowModelFlatRowsOrder.test.ts` | 1 | 1 | 1 | 0 |
@@ -71,12 +91,21 @@ file. Full per-case exclusion lists live in `reports/phase-N.md`.
 | `unit/core/headers/coreHeadersFeature.utils.test.ts` | 13 | 10 | 10 | 3 |
 | `unit/core/rows/constructRow.test.ts` | 2 | 1 | 1 | 1 |
 | `unit/core/rows/coreRowsFeature.utils.test.ts` | 21 | 18 | 18 | 3 |
-| `unit/core/row-models/coreRowModelsFeature.utils.test.ts` | 17 | 9 | 9 | 8 |
+| `unit/core/row-models/coreRowModelsFeature.utils.test.ts` | 17 | 10 | 10 | 7 |
 | `unit/core/cells/constructCell.test.ts` | 2 | 1 | 1 | 1 |
 | `unit/core/cells/coreCellsFeature.utils.test.ts` | 4 | 1 | 1 | 3 |
 | `unit/core/table/constructTable.test.ts` | 7 | 0 | 0 | 7 |
 | `unit/core/table/rowModelSlots.test.ts` | 11 | 0 | 0 | 11 |
 | `unit/core/table/stockFeaturesInitialState.test.ts` | 1 | 1 | 1 | 0 |
+| `implementation/features/column-filtering/createFilteredRowModel.test.ts` | 38 | 32 | 32 | 6 |
+| `unit/features/column-filtering/columnFilteringFeature.utils.test.ts` | 28 | 26 | 26 | 2 |
+| `implementation/features/column-faceting/createFacetedRowModels.test.ts` | 22 | 19 | 19 | 3 |
+| `unit/features/column-faceting/columnFacetingFeature.test.ts` | 4 | 3 | 3 | 1 |
+| `unit/features/global-filtering/globalFilteringFeature.utils.test.ts` | 20 | 18 | 18 | 2 |
+| `implementation/features/row-sorting/createSortedRowModel.test.ts` | 25 | 25 | 25 | 0 |
+| `unit/features/row-sorting/rowSortingFeature.utils.test.ts` | 52 | 49 | 49 | 3 |
+| `implementation/features/row-pagination/createPaginatedRowModel.test.ts` | 16 | 15 | 15 | 1 |
+| `unit/features/row-pagination/rowPaginationFeature.utils.test.ts` | 51 | 44 | 44 | 7 |
 
 ## Semantic differences
 
@@ -87,7 +116,12 @@ exact numeric chunk comparison above 15 digits, structural `weakEquals`,
 `reports/phase-2.md` (pipeline order is core → filtered → grouped → sorted →
 expanded → paginated, matching TanStack's `preSorted = grouped`; abstract
 `Expanded` / `SortUndefined` / `GroupedColumnMode` with one function per
-variant; no memoization or instance identity).
+variant; no memoization or instance identity) and `reports/phase-3.md` (10
+items: no fn registries so `getSortFn` / `getFilterFn` return functions and
+"registered name" cases collapse; `resetX` returns to the feature default,
+not a caller's `initialState`; no per-row `columnFiltersMeta`; `Infinity`
+page size is `unlimitedPageSize`; custom filters receive the raw filter
+value; sorted and paginated `rowsById` are the pre-stage maps as in TanStack).
 
 ## Renames
 
@@ -98,3 +132,5 @@ variant; no memoization or instance identity).
 - `expanded: true` → `expandAll`; `expanded: Record<string, boolean>` →
   `expandedIds (Set String)`.
 - `reSplitAlphaNumeric` → `Table.SortFn.splitAlphaNumeric`.
+- `column.toggleSorting` → `toggleSort`; `setPageIndex` → `setPage`;
+  `getIsSorted` returns `Maybe SortDir` rather than `false | 'asc' | 'desc'`.
