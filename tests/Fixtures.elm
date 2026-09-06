@@ -2,6 +2,7 @@ module Fixtures exposing
     ( Person, Status(..), SubRows(..)
     , staticData, makeData
     , statusToString, subRowsOf
+    , columns, config
     )
 
 {-| Typed counterpart of `tests/fixtures/data/types.ts` and
@@ -14,8 +15,12 @@ congruential generator seeded per call) so tests are reproducible.
 @docs Person, Status, SubRows
 @docs staticData, makeData
 @docs statusToString, subRowsOf
+@docs columns, config
 
 -}
+
+import Table
+import Table.Value as Value exposing (Value)
 
 
 {-| Mirrors the `Person` type. `subRows` is empty instead of `undefined`.
@@ -171,3 +176,32 @@ firstNames =
 lastNames : List String
 lastNames =
     [ "Smith", "Johnson", "Brown", "Williams", "Jones", "Miller", "Davis", "Garcia", "Rodriguez", "Wilson", "Martinez", "Anderson", "Taylor", "Thomas", "Moore" ]
+
+
+{-| The Elm counterpart of `generateTestColumnDefs(people)`: one accessor
+column per `Person` field, the field name as the column id. `subRows` is not
+a column.
+-}
+columns : List (Table.Column Person)
+columns =
+    [ Table.column "id" (.id >> Value.String)
+    , Table.column "firstName" (.firstName >> Value.String)
+    , Table.column "lastName" (.lastName >> Value.String)
+    , Table.column "age" (.age >> number)
+    , Table.column "visits" (.visits >> number)
+    , Table.column "progress" (.progress >> number)
+    , Table.column "status" (.status >> statusToString >> Value.String)
+    ]
+
+
+number : Int -> Value
+number =
+    toFloat >> Value.Number
+
+
+{-| A configuration over [`columns`](#columns) that reads `subRows`.
+-}
+config : Table.Config Person
+config =
+    Table.config columns
+        |> Table.withSubRows subRowsOf

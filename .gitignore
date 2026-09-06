@@ -13,3 +13,4 @@ examples/elm-stuff/
 bench/elm-stuff/
 review/elm-stuff/
 *.log
+bench/elm-bench.js
