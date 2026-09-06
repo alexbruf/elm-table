@@ -1,0 +1,15 @@
+.env
+.env.*
+!.env.example
+node_modules/
+dist/
+.claude/
+elm-stuff/
+docs.json
+reference/
+demo/dist/
+demo/elm-stuff/
+examples/elm-stuff/
+bench/elm-stuff/
+review/elm-stuff/
+*.log
