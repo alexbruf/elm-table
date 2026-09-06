@@ -58,7 +58,7 @@ Ports `core/columns/constructColumn.ts` and
 import Dict exposing (Dict)
 import Table.AggregationFn exposing (AggregationFn)
 import Table.FilterFn exposing (FilterFn)
-import Table.Internal.Types exposing (Column(..), ColumnFields, Config, Row, SortUndefined(..), State)
+import Table.Internal.Types exposing (Column(..), ColumnFields, Config, Row, SortUndefined, State)
 import Table.SortFn exposing (SortFn)
 import Table.Value exposing (Value)
 
@@ -112,13 +112,13 @@ emptyFields columnId =
     , customSort = Nothing
     , sortDescFirst = Nothing
     , invertSorting = False
-    , sortUndefined = SortNullsLast
+    , sortUndefined = Nothing
     , enableSorting = True
-    , enableMultiSort = True
+    , enableMultiSort = Nothing
     , filterFn = Nothing
     , customFilter = Nothing
     , enableColumnFilter = True
-    , enableGlobalFilter = True
+    , enableGlobalFilter = Nothing
     , aggregationFn = Nothing
     , getGroupingValue = Nothing
     , getUniqueValues = Nothing
@@ -201,7 +201,7 @@ withInvertSorting flag =
 -}
 withSortUndefined : SortUndefined -> Column row -> Column row
 withSortUndefined placement =
-    update (\f -> { f | sortUndefined = placement })
+    update (\f -> { f | sortUndefined = Just placement })
 
 
 {-| Allow or forbid sorting on this column.
@@ -215,7 +215,7 @@ withEnableSorting flag =
 -}
 withEnableMultiSort : Bool -> Column row -> Column row
 withEnableMultiSort flag =
-    update (\f -> { f | enableMultiSort = flag })
+    update (\f -> { f | enableMultiSort = Just flag })
 
 
 {-| Filter this column with a built-in filter function.
@@ -243,7 +243,7 @@ withEnableColumnFilter flag =
 -}
 withEnableGlobalFilter : Bool -> Column row -> Column row
 withEnableGlobalFilter flag =
-    update (\f -> { f | enableGlobalFilter = flag })
+    update (\f -> { f | enableGlobalFilter = Just flag })
 
 
 {-| Aggregate this column's values on group rows.

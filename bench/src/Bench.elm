@@ -1,6 +1,6 @@
 port module Bench exposing (main)
 
-{-| Timing harness for `Table.coreRowModel`.
+{-| Timing harness for `Table.coreRowModel` and for the full pipeline.
 
 `run.js` sends a command through the `request` port, this program does the
 work inside the subscription handler and answers through `response`, and the
@@ -156,6 +156,9 @@ update command model =
         "nested" ->
             ( model, response (measure nestedConfig model.nested) )
 
+        "pipeline" ->
+            ( model, response (measurePipeline flatConfig pipelineState model.flat) )
+
         _ ->
             ( model
             , response
@@ -165,6 +168,39 @@ update command model =
                     ++ String.fromInt (Array.length model.nested)
                 )
             )
+
+
+{-| One column filter (`includesString`), one sort, and a page of 50.
+-}
+pipelineState : Table.State
+pipelineState =
+    let
+        state : Table.State
+        state =
+            Table.initialState
+    in
+    { state
+        | columnFilters = [ { id = "status", value = Value.String "l" } ]
+        , sorting = [ { id = "lastName", desc = False } ]
+        , pagination = { pageIndex = 0, pageSize = 50 }
+    }
+
+
+{-| Force the whole pipeline: core, filtered, sorted, paginated. Grouping and
+expanding are still identity stages until phase 4.
+-}
+measurePipeline : Table.Config Person -> Table.State -> Array Person -> String
+measurePipeline cfg state data =
+    let
+        model : Table.RowModel Person
+        model =
+            Table.rows cfg state data
+    in
+    String.fromInt (List.length model.rows)
+        ++ " "
+        ++ String.fromInt (List.length model.flatRows)
+        ++ " "
+        ++ String.fromInt (Dict.size model.rowsById)
 
 
 {-| Force the whole row model so nothing is left unevaluated.

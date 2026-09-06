@@ -1,4 +1,4 @@
-// Times Table.coreRowModel on 10,000 rows through Elm ports.
+// Times Table.coreRowModel and the full pipeline on 10,000 rows through Elm ports.
 // The Elm side does the work inside the port subscription handler and answers
 // through an outgoing port; the clock runs around that single round trip.
 const { Elm } = require('./elm-bench.js')
@@ -39,10 +39,10 @@ async function time(command) {
 
 async function main() {
   console.log(await send('prepare'))
-  for (const command of ['flat', 'nested']) {
+  for (const command of ['flat', 'nested', 'pipeline']) {
     const result = await time(command)
     console.log(
-      `${command.padEnd(7)} rows/flatRows/rowsById: ${result.answer}  ` +
+      `${command.padEnd(8)} rows/flatRows/rowsById: ${result.answer}  ` +
         `min ${result.min.toFixed(1)} ms  median ${result.median.toFixed(1)} ms  ` +
         `(${RUNS} runs)`,
     )

@@ -747,8 +747,9 @@ constructFilterFnSuite =
                 in
                 Expect.equal True (apply upperCaseEquals (str "john") (str "JOHN"))
 
-        -- excluded: "applies both resolvers when filtering through the table row
-        -- model" needs the phase 3 filtered row model.
+        -- moved: "applies both resolvers when filtering through the table row
+        -- model" needs the filtered row model, so it lives in
+        -- tests/FilteringRowModelTest.elm since phase 3.
         ]
 
 
@@ -940,8 +941,8 @@ inDateRangeSuite =
 --   Both assert JavaScript object identity between a registry entry and the
 --   exported fn; Elm has no filter fn registry and no reference equality.
 --
--- excluded: describe "auto filter fn for date columns"
---   * "resolves inDateRange for Date-valued columns" needs column
---     `getAutoFilterFn`, which arrives with phase 3 filtering.
---   * "filters date rows through the table row model" needs the phase 3
---     filtered row model.
+-- moved: describe "auto filter fn for date columns"
+--   * "resolves inDateRange for Date-valued columns"
+--   * "filters date rows through the table row model"
+--   Both need `Table.getAutoFilterFn` and the filtered row model, so they live
+--   in tests/FilteringRowModelTest.elm since phase 3.

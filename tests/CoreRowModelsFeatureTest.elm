@@ -3,10 +3,10 @@ module CoreRowModelsFeatureTest exposing (suite)
 {-| Ports
 `tests/unit/core/row-models/coreRowModelsFeature.utils.test.ts`.
 
-In phase 2 every stage after the core row model is an identity
-pass-through, so the cases below assert the bypass half of the vitest
-cases. The transform half is added when the stage bodies land in phases 3
-and 4. Excluded cases are listed in `reports/phase-2.md`.
+Phase 3 filled in the filtering, sorting and pagination stages, so the
+matrix cases below assert both halves for those; the grouping and
+expanding halves still wait for phase 4 and are marked in place.
+Excluded cases are listed in `reports/phase-2.md`.
 
 -}
 
@@ -172,10 +172,34 @@ suite =
                             matrix (\cfg -> { cfg | manualFiltering = True, manualSorting = True })
                     in
                     Expect.equal (s.sorted == s.preSorted) True
+            , test "registered factories should apply when manual options are off" <|
+                \_ ->
+                    let
+                        cfg : Table.Config Item
+                        cfg =
+                            matrixConfig
+
+                        state : Table.State
+                        state =
+                            { matrixState
+                                | columnFilters = [ { id = "name", value = Value.String "zzz-no-match" } ]
+                            }
+
+                        core : Table.RowModel Item
+                        core =
+                            Table.coreRowModelFromList cfg state matrixData
+
+                        filtered : Table.RowModel Item
+                        filtered =
+                            Table.filteredRowModel cfg state core
+                    in
+                    Expect.equal ( List.length filtered.rows, filtered == core ) ( 0, False )
             ]
         , describe "one manual option at a time"
             [ test "manualFiltering should bypass filtering while grouping still groups the unfiltered rows" <|
                 \_ ->
+                    -- The downstream grouping half of this case waits for the
+                    -- phase 4 grouped row model.
                     let
                         s =
                             matrix (\cfg -> { cfg | manualFiltering = True })
@@ -188,10 +212,19 @@ suite =
                         s =
                             matrix (\cfg -> { cfg | manualGrouping = True })
                     in
-                    Expect.equal ( s.grouped == s.preGrouped, s.grouped == s.filtered )
-                        ( True, True )
+                    Expect.equal
+                        { bypassed = s.grouped == s.preGrouped
+                        , identity_ = s.grouped == s.filtered
+                        , sortedNames = List.map (Table.rowOriginal >> .name) s.sorted.rows
+                        }
+                        { bypassed = True
+                        , identity_ = True
+                        , sortedNames = [ "alpha", "bravo", "delta", "echo" ]
+                        }
             , test "manualSorting should bypass sorting while expanding still flattens the grouped rows" <|
                 \_ ->
+                    -- The downstream expanding half of this case waits for the
+                    -- phase 4 expanded row model.
                     let
                         s =
                             matrix (\cfg -> { cfg | manualSorting = True })
@@ -200,20 +233,34 @@ suite =
                         ( True, True )
             , test "manualExpanding should bypass expanding while pagination still slices the unexpanded rows" <|
                 \_ ->
+                    -- Grouping is phase 4's, so the page holds the 2 leading
+                    -- filtered leaf rows instead of 2 group rows.
                     let
                         s =
                             matrix (\cfg -> { cfg | manualExpanding = True })
                     in
-                    Expect.equal ( s.expanded == s.preExpanded, s.expanded == s.sorted )
-                        ( True, True )
+                    Expect.equal
+                        { bypassed = s.expanded == s.preExpanded
+                        , identity_ = s.expanded == s.sorted
+                        , pageSize = List.length s.paginated.rows
+                        }
+                        { bypassed = True, identity_ = True, pageSize = 2 }
             , test "manualPagination should bypass pagination so the final row model keeps every expanded row" <|
                 \_ ->
+                    -- pageSize is 2 but every filtered row survives. TanStack
+                    -- counts 7 rows there (2 group rows plus 5 leaves); until
+                    -- phase 4 fills grouping and expanding in, the count is
+                    -- the 4 filtered root rows.
                     let
                         s =
                             matrix (\cfg -> { cfg | manualPagination = True })
                     in
-                    Expect.equal ( s.paginated == s.prePaginated, s.final == s.expanded )
-                        ( True, True )
+                    Expect.equal
+                        { bypassed = s.paginated == s.prePaginated
+                        , identity_ = s.final == s.expanded
+                        , keepsEveryRow = List.length s.final.rows
+                        }
+                        { bypassed = True, identity_ = True, keepsEveryRow = 4 }
             ]
         , describe "all manual options at once"
             [ test "should make the final row model identity-equal to the core row model" <|

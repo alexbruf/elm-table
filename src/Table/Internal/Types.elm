@@ -17,6 +17,7 @@ module Table.Internal.Types exposing
     , RowPinning
     , SizeDefaults
     , SortColumn
+    , SortDir(..)
     , SortUndefined(..)
     , State
     )
@@ -62,13 +63,13 @@ type alias ColumnFields row =
     , customSort : Maybe (Row row -> Row row -> Order)
     , sortDescFirst : Maybe Bool
     , invertSorting : Bool
-    , sortUndefined : SortUndefined
+    , sortUndefined : Maybe SortUndefined
     , enableSorting : Bool
-    , enableMultiSort : Bool
+    , enableMultiSort : Maybe Bool
     , filterFn : Maybe FilterFn
     , customFilter : Maybe (Row row -> Value -> Bool)
     , enableColumnFilter : Bool
-    , enableGlobalFilter : Bool
+    , enableGlobalFilter : Maybe Bool
     , aggregationFn : Maybe AggregationFn
     , getGroupingValue : Maybe (row -> Value)
     , getUniqueValues : Maybe (row -> List Value)
@@ -89,6 +90,13 @@ type SortUndefined
     | SortNullsLast
     | SortNullsAsMinusOne
     | SortNullsAsPlusOne
+
+
+{-| A sort direction. Mirrors TanStack's `SortDirection`.
+-}
+type SortDir
+    = Asc
+    | Desc
 
 
 {-| Mirrors TanStack's `groupedColumnMode: 'reorder' | 'remove' | false`.
@@ -120,9 +128,11 @@ type alias Config row =
     , maxMultiSortColCount : Int
     , enableSortingRemoval : Bool
     , enableMultiRemove : Bool
-    , sortDescFirst : Bool
+    , sortDescFirst : Maybe Bool
+    , enableFilters : Bool
     , enableColumnFilters : Bool
     , enableGlobalFilter : Bool
+    , getColumnCanGlobalFilter : Maybe (Column row -> Bool)
     , filterFromLeafRows : Bool
     , maxLeafRowFilterDepth : Int
     , globalFilterFn : Maybe FilterFn
@@ -130,6 +140,8 @@ type alias Config row =
     , groupedColumnMode : GroupedColumnMode
     , enableExpanding : Bool
     , paginateExpandedRows : Bool
+    , pageCount : Maybe Int
+    , rowCount : Maybe Int
     , enableRowSelection : row -> Bool
     , enableMultiRowSelection : Bool
     , enableSubRowSelection : Bool

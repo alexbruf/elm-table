@@ -31,6 +31,22 @@ module Table
     , rows, rowsFromList, coreRowModel, coreRowModelFromList
     , filteredRowModel, groupedRowModel, sortedRowModel, expandedRowModel, paginatedRowModel
     , facetedUniqueValues, facetedMinMax
+    , SortDir, sortAsc, sortDesc
+    , getCanFilter, getIsFiltered, getFilterValue, getFilterIndex
+    , getFilterFn, getAutoFilterFn, shouldAutoRemoveFilter
+    , setColumnFilter, setColumnFilters, resetColumnFilters
+    , getCanGlobalFilter, getGlobalFilterFn, globalAutoFilterFn
+    , setGlobalFilter, resetGlobalFilter
+    , facetedRowModel, globalFacetKey
+    , getCanSort, getCanMultiSort, getIsSorted, getSortIndex
+    , getAutoSortFn, getSortFn, getAutoSortDir, getFirstSortDir, getNextSortingOrder
+    , toggleSort, setSorting, clearSorting, resetSorting
+    , prePaginationRowModel, rowsInDisplayOrder, displayIndex
+    , setPage, setPageSize, setPagination
+    , resetPageIndex, resetPageSize, resetPagination
+    , getPageCount, getPageOptions, getRowCount
+    , getCanPreviousPage, getCanNextPage, getCanLastPage
+    , previousPage, nextPage, firstPage, lastPage, unlimitedPageSize
     -- Phase 3
     -- Phase 4
     -- Phase 5
@@ -115,6 +131,52 @@ function per variant.
 
 # Phase 3
 
+Filtering, faceting, sorting, and pagination. Every reader that has to guess
+something from the data (`'auto'` filter and sort functions, the default
+global-filter predicate, the automatic first sort direction) takes a
+`RowModel row` to sample, exactly like TanStack, which samples the core or
+filtered row model for the same job.
+
+
+## Sort direction
+
+@docs SortDir, sortAsc, sortDesc
+
+
+## Column filter state
+
+@docs getCanFilter, getIsFiltered, getFilterValue, getFilterIndex
+@docs getFilterFn, getAutoFilterFn, shouldAutoRemoveFilter
+@docs setColumnFilter, setColumnFilters, resetColumnFilters
+
+
+## Global filter state
+
+@docs getCanGlobalFilter, getGlobalFilterFn, globalAutoFilterFn
+@docs setGlobalFilter, resetGlobalFilter
+
+
+## Faceted row model
+
+@docs facetedRowModel, globalFacetKey
+
+
+## Sorting state
+
+@docs getCanSort, getCanMultiSort, getIsSorted, getSortIndex
+@docs getAutoSortFn, getSortFn, getAutoSortDir, getFirstSortDir, getNextSortingOrder
+@docs toggleSort, setSorting, clearSorting, resetSorting
+
+
+## Pagination state
+
+@docs prePaginationRowModel, rowsInDisplayOrder, displayIndex
+@docs setPage, setPageSize, setPagination
+@docs resetPageIndex, resetPageSize, resetPagination
+@docs getPageCount, getPageOptions, getRowCount
+@docs getCanPreviousPage, getCanNextPage, getCanLastPage
+@docs previousPage, nextPage, firstPage, lastPage, unlimitedPageSize
+
 
 # Phase 4
 
@@ -134,6 +196,7 @@ import Table.Internal.CoreRowModel as CoreRowModel
 import Table.Internal.Expanding as Expanding
 import Table.Internal.Faceting as Faceting
 import Table.Internal.Filtering as Filtering
+import Table.Internal.GlobalFiltering as GlobalFiltering
 import Table.Internal.Grouping as Grouping
 import Table.Internal.Header as Header
 import Table.Internal.Pagination as Pagination
@@ -1067,3 +1130,483 @@ phase 3.
 facetedMinMax : Config row -> State -> RowModel row -> String -> Maybe ( Float, Float )
 facetedMinMax =
     Faceting.facetedMinMax
+
+
+
+-- PHASE 3
+--
+-- Filtering, faceting, sorting, and pagination. Bodies live in
+-- src/Table/Internal/{Filtering,GlobalFiltering,Faceting,Sorting,Pagination}.elm.
+
+
+{-| A sort direction.
+-}
+type alias SortDir =
+    Types.SortDir
+
+
+{-| Ascending.
+-}
+sortAsc : SortDir
+sortAsc =
+    Types.Asc
+
+
+{-| Descending.
+-}
+sortDesc : SortDir
+sortDesc =
+    Types.Desc
+
+
+
+-- COLUMN FILTER STATE
+
+
+{-| Can this column carry a column filter? It needs an accessor, and neither
+the column nor `Config.enableColumnFilters` nor `Config.enableFilters` may
+have switched filtering off.
+
+The filtered row model does not consult this: a `State.columnFilters` entry
+for a column that answers `False` is still applied, matching TanStack.
+
+-}
+getCanFilter : Config row -> String -> Bool
+getCanFilter =
+    Filtering.getCanFilter
+
+
+{-| Does `State.columnFilters` hold an entry for this column?
+-}
+getIsFiltered : State -> String -> Bool
+getIsFiltered =
+    Filtering.getIsFiltered
+
+
+{-| This column's current filter value, when it has one.
+-}
+getFilterValue : State -> String -> Maybe Value
+getFilterValue =
+    Filtering.getFilterValue
+
+
+{-| This column's position in `State.columnFilters`, or `-1`.
+-}
+getFilterIndex : State -> String -> Int
+getFilterIndex =
+    Filtering.getFilterIndex
+
+
+{-| The filter function a column filters with: the one set with
+`withFilterFn`, or the automatic choice. `Nothing` when the column does not
+exist.
+
+Pass the core row model; the automatic choice samples it.
+
+-}
+getFilterFn : Config row -> RowModel row -> String -> Maybe FilterFn
+getFilterFn =
+    Filtering.getFilterFn
+
+
+{-| The filter function `'auto'` picks for a column, from the type of its
+first non-null value: `includesString` for strings, `inNumberRange` for
+numbers, `equals` for booleans, `arrIncludes` for lists, `inDateRange` for
+dates, and `weakEquals` when every value is `Null`.
+-}
+getAutoFilterFn : Config row -> RowModel row -> String -> FilterFn
+getAutoFilterFn =
+    Filtering.getAutoFilterFn
+
+
+{-| Should a filter value be dropped from state instead of stored? A filter
+function's own rule wins; without one, `Null` and the empty string are
+dropped.
+-}
+shouldAutoRemoveFilter : Maybe FilterFn -> Value -> Bool
+shouldAutoRemoveFilter =
+    Filtering.shouldAutoRemoveFilter
+
+
+{-| Set one column's filter value: replaced in place when the column already
+has one, appended otherwise, and removed when
+[`shouldAutoRemoveFilter`](#shouldAutoRemoveFilter) says the value is blank.
+-}
+setColumnFilter : Config row -> RowModel row -> String -> Value -> State -> State
+setColumnFilter =
+    Filtering.setColumnFilter
+
+
+{-| Replace `State.columnFilters` wholesale, dropping the entries of known
+columns whose value should auto-remove.
+-}
+setColumnFilters : Config row -> RowModel row -> List ColumnFilter -> State -> State
+setColumnFilters =
+    Filtering.setColumnFilters
+
+
+{-| Clear every column filter.
+-}
+resetColumnFilters : State -> State
+resetColumnFilters =
+    Filtering.resetColumnFilters
+
+
+
+-- GLOBAL FILTER STATE
+
+
+{-| Does the global filter run against this column? It needs an accessor,
+`Config.enableGlobalFilter` and `Config.enableFilters` have to be on, the
+column must not opt out, and `Config.getColumnCanGlobalFilter` (whose default
+keeps a column only when its first non-null value is a string or a number)
+has to agree.
+-}
+getCanGlobalFilter : Config row -> RowModel row -> String -> Bool
+getCanGlobalFilter =
+    GlobalFiltering.getCanGlobalFilter
+
+
+{-| The filter function the global filter uses: `Config.globalFilterFn`, or
+[`globalAutoFilterFn`](#globalAutoFilterFn).
+-}
+getGlobalFilterFn : Config row -> FilterFn
+getGlobalFilterFn =
+    GlobalFiltering.getGlobalFilterFn
+
+
+{-| The global filter's automatic function: `Table.FilterFn.includesString`.
+-}
+globalAutoFilterFn : FilterFn
+globalAutoFilterFn =
+    GlobalFiltering.autoFilterFn
+
+
+{-| Set the global filter value.
+-}
+setGlobalFilter : Value -> State -> State
+setGlobalFilter =
+    GlobalFiltering.setGlobalFilter
+
+
+{-| Clear the global filter.
+-}
+resetGlobalFilter : State -> State
+resetGlobalFilter =
+    GlobalFiltering.resetGlobalFilter
+
+
+
+-- FACETING
+
+
+{-| The rows a column's facets are computed from: the pre-filtered rows with
+every active filter applied except that column's own, so a filter UI keeps
+showing the values the user could switch to.
+
+Pass the row model you handed to [`filteredRowModel`](#filteredRowModel).
+Passing [`globalFacetKey`](#globalFacetKey) as the column id excludes the
+global filter instead of a column filter.
+
+-}
+facetedRowModel : Config row -> State -> RowModel row -> String -> RowModel row
+facetedRowModel =
+    Faceting.facetedRowModel
+
+
+{-| The column id that stands for the global filter's own facet context,
+`"__global__"`. Passing it to [`facetedRowModel`](#facetedRowModel),
+[`facetedUniqueValues`](#facetedUniqueValues) or
+[`facetedMinMax`](#facetedMinMax) aggregates across every globally
+filterable column.
+-}
+globalFacetKey : String
+globalFacetKey =
+    Faceting.globalFacetKey
+
+
+
+-- SORTING STATE
+
+
+{-| Can this column be sorted? It needs an accessor and both the column and
+`Config.enableSorting` have to allow it.
+-}
+getCanSort : Config row -> String -> Bool
+getCanSort =
+    Sorting.getCanSort
+
+
+{-| Can this column join a multi-sort? The column's own setting wins over
+`Config.enableMultiSort`.
+-}
+getCanMultiSort : Config row -> String -> Bool
+getCanMultiSort =
+    Sorting.getCanMultiSort
+
+
+{-| This column's sort direction, or `Nothing` when it is not sorted.
+-}
+getIsSorted : State -> String -> Maybe SortDir
+getIsSorted =
+    Sorting.getIsSorted
+
+
+{-| This column's position in `State.sorting`, or `-1`.
+-}
+getSortIndex : State -> String -> Int
+getSortIndex =
+    Sorting.getSortIndex
+
+
+{-| The sort function `'auto'` picks for a column. The first ten rows of the
+row model are sampled: a date gives `datetime`, a string holding digits gives
+`alphanumeric`, any other string gives `text`, and anything else gives
+`basic`.
+
+Pass the filtered row model, which is what TanStack samples.
+
+-}
+getAutoSortFn : Config row -> RowModel row -> String -> SortFn
+getAutoSortFn =
+    Sorting.getAutoSortFn
+
+
+{-| The sort function a column sorts with: the one set with `withSortFn`, or
+the automatic choice. A column set up with `withCustomSort` compares whole
+rows and has no `SortFn`, so this reports its automatic choice while the row
+model uses the custom comparison.
+-}
+getSortFn : Config row -> RowModel row -> String -> SortFn
+getSortFn =
+    Sorting.getSortFn
+
+
+{-| The direction a column starts sorting in when nothing says otherwise: the
+first non-null value among the first ten rows decides, strings ascending and
+everything else descending.
+-}
+getAutoSortDir : Config row -> RowModel row -> String -> SortDir
+getAutoSortDir =
+    Sorting.getAutoSortDir
+
+
+{-| The direction the first click on a column sorts in: the column's
+`withSortDescFirst` wins, then `Config.sortDescFirst`, then
+[`getAutoSortDir`](#getAutoSortDir).
+-}
+getFirstSortDir : Config row -> RowModel row -> String -> SortDir
+getFirstSortDir =
+    Sorting.getFirstSortDir
+
+
+{-| The next step of a column's sort cycle. `Nothing` means the next step
+removes the sort, which `Config.enableSortingRemoval` and (in a multi-sort)
+`Config.enableMultiRemove` can forbid.
+-}
+getNextSortingOrder : Config row -> RowModel row -> State -> String -> Bool -> Maybe SortDir
+getNextSortingOrder =
+    Sorting.getNextSortingOrder
+
+
+{-| Step a column's sort: add it, replace the sort with it, flip its
+direction, or remove it.
+
+`desc = Just d` sets the direction outright instead of stepping the cycle.
+`multi = True` asks to add to the existing sort rather than replace it, which
+happens only when [`getCanMultiSort`](#getCanMultiSort) allows it;
+`Config.maxMultiSortColCount` caps how many columns a multi-sort keeps.
+
+-}
+toggleSort : Config row -> RowModel row -> String -> { desc : Maybe Bool, multi : Bool } -> State -> State
+toggleSort =
+    Sorting.toggleSort
+
+
+{-| Replace `State.sorting`.
+-}
+setSorting : List SortColumn -> State -> State
+setSorting =
+    Sorting.setSorting
+
+
+{-| Remove one column from `State.sorting`, leaving the others in order.
+-}
+clearSorting : String -> State -> State
+clearSorting =
+    Sorting.clearSorting
+
+
+{-| Clear every sort.
+-}
+resetSorting : State -> State
+resetSorting =
+    Sorting.resetSorting
+
+
+
+-- PAGINATION STATE
+
+
+{-| The row model pagination slices, which is the expanded row model. The
+row counts and page counts below all read it.
+-}
+prePaginationRowModel : Config row -> State -> RowModel row -> RowModel row
+prePaginationRowModel =
+    expandedRowModel
+
+
+{-| The rows a caller renders, in order. With
+`Config.paginateExpandedRows = False` the expanded descendants that the
+pre-pagination row model does not carry are inserted here.
+-}
+rowsInDisplayOrder : Config row -> State -> RowModel row -> List (Row row)
+rowsInDisplayOrder =
+    Pagination.rowsInDisplayOrder
+
+
+{-| A row's zero-based position in
+[`rowsInDisplayOrder`](#rowsInDisplayOrder), or `-1` when it is not there.
+-}
+displayIndex : Config row -> State -> RowModel row -> Row row -> Int
+displayIndex cfg state model row =
+    positionOf (Row.id row) 0 (rowsInDisplayOrder cfg state model)
+
+
+positionOf : String -> Int -> List (Row row) -> Int
+positionOf wanted at candidates =
+    case candidates of
+        [] ->
+            -1
+
+        first :: rest ->
+            if Row.id first == wanted then
+                at
+
+            else
+                positionOf wanted (at + 1) rest
+
+
+{-| Go to a page, clamped to `[0, Config.pageCount - 1]` when
+`Config.pageCount` is set. A `Config.pageCount` of `Just -1` means the count
+is unknown and clamps nothing.
+-}
+setPage : Config row -> Int -> State -> State
+setPage =
+    Pagination.setPage
+
+
+{-| Change the page size, at least `1`. The page index moves so the row that
+was at the top of the page stays in view.
+-}
+setPageSize : Int -> State -> State
+setPageSize =
+    Pagination.setPageSize
+
+
+{-| Replace `State.pagination`.
+-}
+setPagination : Pagination -> State -> State
+setPagination =
+    Pagination.setPagination
+
+
+{-| Back to page 0.
+-}
+resetPageIndex : Config row -> State -> State
+resetPageIndex =
+    Pagination.resetPageIndex
+
+
+{-| Back to a page size of 10.
+-}
+resetPageSize : State -> State
+resetPageSize =
+    Pagination.resetPageSize
+
+
+{-| Back to page 0 with a page size of 10.
+-}
+resetPagination : State -> State
+resetPagination =
+    Pagination.resetPagination
+
+
+{-| How many pages there are: `Config.pageCount` when it is set, otherwise
+[`getRowCount`](#getRowCount) divided by the page size, rounded up.
+-}
+getPageCount : Config row -> State -> RowModel row -> Int
+getPageCount =
+    Pagination.getPageCount
+
+
+{-| Every page index, `[0, 1, ...]`.
+-}
+getPageOptions : Config row -> State -> RowModel row -> List Int
+getPageOptions =
+    Pagination.getPageOptions
+
+
+{-| How many rows pagination is slicing: `Config.rowCount` when it is set,
+otherwise the rows of the pre-pagination row model.
+-}
+getRowCount : Config row -> RowModel row -> Int
+getRowCount =
+    Pagination.getRowCount
+
+
+{-| Is there a page before this one?
+-}
+getCanPreviousPage : State -> Bool
+getCanPreviousPage =
+    Pagination.getCanPreviousPage
+
+
+{-| Is there a page after this one? An unknown page count always says yes.
+-}
+getCanNextPage : Config row -> State -> RowModel row -> Bool
+getCanNextPage =
+    Pagination.getCanNextPage
+
+
+{-| Is there a known last page after this one?
+-}
+getCanLastPage : Config row -> State -> RowModel row -> Bool
+getCanLastPage =
+    Pagination.getCanLastPage
+
+
+{-| Go back one page, clamped at 0.
+-}
+previousPage : Config row -> State -> State
+previousPage =
+    Pagination.previousPage
+
+
+{-| Go forward one page.
+-}
+nextPage : Config row -> State -> State
+nextPage =
+    Pagination.nextPage
+
+
+{-| Go to page 0.
+-}
+firstPage : Config row -> State -> State
+firstPage =
+    Pagination.firstPage
+
+
+{-| Go to the last page. A no-op when the page count is unknown or empty.
+-}
+lastPage : Config row -> State -> RowModel row -> State
+lastPage =
+    Pagination.lastPage
+
+
+{-| The page size that puts every row on one page. Elm has no `Infinity` for
+`Int`, so this is `Number.MAX_SAFE_INTEGER` where TanStack writes `Infinity`.
+-}
+unlimitedPageSize : Int
+unlimitedPageSize =
+    Pagination.unlimitedPageSize
