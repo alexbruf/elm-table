@@ -283,10 +283,10 @@ suite =
                         ( result == preModel options, List.map Table.rowId result.rows )
                         ( True, [ "0", "1", "2", "3", "4" ] )
 
-            -- excluded: "should include expanded children when expanded rows
-            --   bypass manual pagination". The assertion is on the full row
-            --   model, whose expanding stage lands in phase 4: with
-            --   `manualPagination` on, `createExpandedRowModel` is the stage
-            --   that splices the expanded children in.
+            -- moved: "should include expanded children when expanded rows
+            --   bypass manual pagination" lives in
+            --   `tests/ExpandingRowModelTest.elm` since phase 4. With
+            --   `manualPagination` on it is `createExpandedRowModel` that
+            --   splices the expanded children in.
             ]
         ]

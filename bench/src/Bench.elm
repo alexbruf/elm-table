@@ -12,6 +12,7 @@ import Array exposing (Array)
 import Dict
 import Platform
 import Table
+import Table.AggregationFn as AggregationFn
 import Table.Value as Value
 
 
@@ -29,6 +30,7 @@ type alias Person =
     , visits : Int
     , progress : Int
     , status : String
+    , bucket : String
     , subRows : SubRows
     }
 
@@ -59,7 +61,31 @@ columns =
     , Table.column "visits" (.visits >> toFloat >> Value.Number)
     , Table.column "progress" (.progress >> toFloat >> Value.Number)
     , Table.column "status" (.status >> Value.String)
+    , Table.column "bucket" (.bucket >> Value.String)
     ]
+
+
+{-| The same columns with `sum` on `visits` and `mean` on `progress`, which
+is what the grouping case aggregates on its 20 group rows.
+-}
+groupingColumns : List (Table.Column Person)
+groupingColumns =
+    [ Table.column "id" (.id >> Value.String)
+    , Table.column "firstName" (.firstName >> Value.String)
+    , Table.column "lastName" (.lastName >> Value.String)
+    , Table.column "age" (.age >> toFloat >> Value.Number)
+    , Table.column "visits" (.visits >> toFloat >> Value.Number)
+        |> Table.withAggregationFn AggregationFn.sum
+    , Table.column "progress" (.progress >> toFloat >> Value.Number)
+        |> Table.withAggregationFn AggregationFn.mean
+    , Table.column "status" (.status >> Value.String)
+    , Table.column "bucket" (.bucket >> Value.String)
+    ]
+
+
+groupingConfig : Table.Config Person
+groupingConfig =
+    Table.config groupingColumns
 
 
 flatConfig : Table.Config Person
@@ -81,6 +107,7 @@ person seed id =
     , visits = modBy 1000 seed
     , progress = modBy 100 seed
     , status = statuses (modBy 3 seed)
+    , bucket = "b" ++ String.fromInt (modBy 20 seed)
     , subRows = SubRows []
     }
 
@@ -159,6 +186,9 @@ update command model =
         "pipeline" ->
             ( model, response (measurePipeline flatConfig pipelineState model.flat) )
 
+        "grouped" ->
+            ( model, response (measurePipeline groupingConfig groupedState model.flat) )
+
         _ ->
             ( model
             , response
@@ -186,8 +216,19 @@ pipelineState =
     }
 
 
-{-| Force the whole pipeline: core, filtered, sorted, paginated. Grouping and
-expanding are still identity stages until phase 4.
+{-| The same, plus grouping by the 20-value `bucket` column with everything
+expanded.
+-}
+groupedState : Table.State
+groupedState =
+    { pipelineState
+        | grouping = [ "bucket" ]
+        , expanded = Table.expandAll
+    }
+
+
+{-| Force the whole pipeline: core, filtered, grouped, sorted, expanded,
+paginated.
 -}
 measurePipeline : Table.Config Person -> Table.State -> Array Person -> String
 measurePipeline cfg state data =
