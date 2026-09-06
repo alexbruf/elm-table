@@ -1,5 +1,9 @@
 module Table.Internal.Header exposing
-    ( colSpan
+    ( centerFlatHeaders
+    , centerFooterGroups
+    , centerHeaderGroups
+    , centerLeafHeaders
+    , colSpan
     , columnId
     , depth
     , flatHeaders
@@ -10,7 +14,15 @@ module Table.Internal.Header exposing
     , index
     , isPlaceholder
     , leafHeaders
+    , leftFlatHeaders
+    , leftFooterGroups
+    , leftHeaderGroups
+    , leftLeafHeaders
     , placeholderId
+    , rightFlatHeaders
+    , rightFooterGroups
+    , rightHeaderGroups
+    , rightLeafHeaders
     , rowSpan
     , subHeaders
     )
@@ -25,6 +37,7 @@ and `core/headers/coreHeadersFeature.utils.ts`.
 
 import Dict exposing (Dict)
 import Table.Internal.Column as Column
+import Table.Internal.ColumnPinning as Pinning
 import Table.Internal.Types exposing (Column, Config, Header(..), HeaderGroup, State)
 
 
@@ -105,6 +118,39 @@ subHeaders (Header h) =
 -}
 headerGroups : Config row -> State -> List (HeaderGroup row)
 headerGroups cfg state =
+    buildHeaderGroups cfg state Nothing (visibleLeafColumnsToGroup cfg state)
+
+
+{-| The header rows of the left-pinned columns. Ports
+`table_getStartHeaderGroups`.
+-}
+leftHeaderGroups : Config row -> State -> List (HeaderGroup row)
+leftHeaderGroups cfg state =
+    buildHeaderGroups cfg state (Just "start") (Pinning.leftVisibleLeafColumns cfg state)
+
+
+{-| The header rows of the unpinned columns. Ports
+`table_getCenterHeaderGroups`.
+-}
+centerHeaderGroups : Config row -> State -> List (HeaderGroup row)
+centerHeaderGroups cfg state =
+    buildHeaderGroups cfg state (Just "center") (Pinning.centerVisibleLeafColumns cfg state)
+
+
+{-| The header rows of the right-pinned columns. Ports
+`table_getEndHeaderGroups`.
+-}
+rightHeaderGroups : Config row -> State -> List (HeaderGroup row)
+rightHeaderGroups cfg state =
+    buildHeaderGroups cfg state (Just "end") (Pinning.rightVisibleLeafColumns cfg state)
+
+
+{-| Build the header rows over one list of leaf columns. `family` prefixes
+the header group ids and the parent header ids, the way `buildHeaderGroups`
+does for the pinned regions.
+-}
+buildHeaderGroups : Config row -> State -> Maybe String -> List (Column row) -> List (HeaderGroup row)
+buildHeaderGroups cfg state family columnsToGroup =
     let
         byId : Dict String (Column row)
         byId =
@@ -136,29 +182,36 @@ headerGroups cfg state =
                         , subHeaders = []
                         }
                 )
-                (visibleLeafColumnsToGroup cfg state)
+                columnsToGroup
 
         topRow : List (Header row)
         topRow =
-            climb byId (maxDepth - 1) bottom
+            climb family byId (maxDepth - 1) bottom
                 |> updateSpans visible
     in
     List.range 0 (maxDepth - 1)
         |> List.map
             (\d ->
-                { id = String.fromInt d
+                { id = formatHeaderGroupId family d
                 , depth = d
                 , headers = atLevel d topRow
                 }
             )
 
 
-{-| The leaf columns the header rows are built from. Column pinning splits
-this list into left, center, and right in phase 5.
+{-| The leaf columns the header rows are built from: left-pinned first, then
+the unpinned columns in table order, then the right-pinned ones. Ports the
+pin partitioning path of `table_getHeaderGroups`.
 -}
 visibleLeafColumnsToGroup : Config row -> State -> List (Column row)
-visibleLeafColumnsToGroup =
-    Column.visibleLeafColumns
+visibleLeafColumnsToGroup cfg state =
+    if Pinning.isSomeColumnsPinned state then
+        Pinning.leftVisibleLeafColumns cfg state
+            ++ Pinning.centerVisibleLeafColumns cfg state
+            ++ Pinning.rightVisibleLeafColumns cfg state
+
+    else
+        Column.visibleLeafColumns cfg state
 
 
 {-| The footer rows: the header rows bottom row first.
@@ -168,11 +221,59 @@ footerGroups cfg state =
     List.reverse (headerGroups cfg state)
 
 
+{-| The footer rows of the left-pinned columns. Ports
+`table_getStartFooterGroups`.
+-}
+leftFooterGroups : Config row -> State -> List (HeaderGroup row)
+leftFooterGroups cfg state =
+    List.reverse (leftHeaderGroups cfg state)
+
+
+{-| The footer rows of the unpinned columns. Ports
+`table_getCenterFooterGroups`.
+-}
+centerFooterGroups : Config row -> State -> List (HeaderGroup row)
+centerFooterGroups cfg state =
+    List.reverse (centerHeaderGroups cfg state)
+
+
+{-| The footer rows of the right-pinned columns. Ports
+`table_getEndFooterGroups`.
+-}
+rightFooterGroups : Config row -> State -> List (HeaderGroup row)
+rightFooterGroups cfg state =
+    List.reverse (rightHeaderGroups cfg state)
+
+
 {-| Every header of every header row.
 -}
 flatHeaders : Config row -> State -> List (Header row)
 flatHeaders cfg state =
     List.concatMap .headers (headerGroups cfg state)
+
+
+{-| Every header of the left-pinned header rows. Ports
+`table_getStartFlatHeaders`.
+-}
+leftFlatHeaders : Config row -> State -> List (Header row)
+leftFlatHeaders cfg state =
+    List.concatMap .headers (leftHeaderGroups cfg state)
+
+
+{-| Every header of the center header rows. Ports
+`table_getCenterFlatHeaders`.
+-}
+centerFlatHeaders : Config row -> State -> List (Header row)
+centerFlatHeaders cfg state =
+    List.concatMap .headers (centerHeaderGroups cfg state)
+
+
+{-| Every header of the right-pinned header rows. Ports
+`table_getEndFlatHeaders`.
+-}
+rightFlatHeaders : Config row -> State -> List (Header row)
+rightFlatHeaders cfg state =
+    List.concatMap .headers (rightHeaderGroups cfg state)
 
 
 {-| The leaf headers reachable from the top header row.
@@ -185,6 +286,35 @@ leafHeaders cfg state =
 
         top :: _ ->
             List.concatMap getLeafHeaders top.headers
+
+
+{-| The left-pinned headers that have no sub-headers. Ports
+`table_getStartLeafHeaders`.
+-}
+leftLeafHeaders : Config row -> State -> List (Header row)
+leftLeafHeaders cfg state =
+    List.filter noSubHeaders (leftFlatHeaders cfg state)
+
+
+{-| The center headers that have no sub-headers. Ports
+`table_getCenterLeafHeaders`.
+-}
+centerLeafHeaders : Config row -> State -> List (Header row)
+centerLeafHeaders cfg state =
+    List.filter noSubHeaders (centerFlatHeaders cfg state)
+
+
+{-| The right-pinned headers that have no sub-headers. Ports
+`table_getEndLeafHeaders`.
+-}
+rightLeafHeaders : Config row -> State -> List (Header row)
+rightLeafHeaders cfg state =
+    List.filter noSubHeaders (rightFlatHeaders cfg state)
+
+
+noSubHeaders : Header row -> Bool
+noSubHeaders (Header h) =
+    List.isEmpty h.subHeaders
 
 
 {-| The descendants of a header, deepest first, with the header itself last.
@@ -214,24 +344,24 @@ maxHeaderDepth state columns atDepth =
 
 {-| Build the parent header rows until the top row is reached, and return it.
 -}
-climb : Dict String (Column row) -> Int -> List (Header row) -> List (Header row)
-climb byId groupDepth headers =
+climb : Maybe String -> Dict String (Column row) -> Int -> List (Header row) -> List (Header row)
+climb family byId groupDepth headers =
     if groupDepth > 0 then
-        climb byId (groupDepth - 1) (parentsOf byId groupDepth headers)
+        climb family byId (groupDepth - 1) (parentsOf family byId groupDepth headers)
 
     else
         headers
 
 
-parentsOf : Dict String (Column row) -> Int -> List (Header row) -> List (Header row)
-parentsOf byId groupDepth headers =
-    List.foldl (addToParents byId groupDepth) [] headers
+parentsOf : Maybe String -> Dict String (Column row) -> Int -> List (Header row) -> List (Header row)
+parentsOf family byId groupDepth headers =
+    List.foldl (addToParents family byId groupDepth) [] headers
         |> List.reverse
         |> List.map closeSubHeaders
 
 
-addToParents : Dict String (Column row) -> Int -> Header row -> List (Header row) -> List (Header row)
-addToParents byId groupDepth (Header child) pending =
+addToParents : Maybe String -> Dict String (Column row) -> Int -> Header row -> List (Header row) -> List (Header row)
+addToParents family byId groupDepth (Header child) pending =
     let
         col : Maybe (Column row)
         col =
@@ -260,16 +390,16 @@ addToParents byId groupDepth (Header child) pending =
                 Header { latest | subHeaders = Header child :: latest.subHeaders } :: rest
 
             else
-                newParent groupDepth parentColumnId placeholder (Header child) pending
+                newParent family groupDepth parentColumnId placeholder (Header child) pending
 
         [] ->
-            newParent groupDepth parentColumnId placeholder (Header child) pending
+            newParent family groupDepth parentColumnId placeholder (Header child) pending
 
 
-newParent : Int -> String -> Bool -> Header row -> List (Header row) -> List (Header row)
-newParent groupDepth parentColumnId placeholder child pending =
+newParent : Maybe String -> Int -> String -> Bool -> Header row -> List (Header row) -> List (Header row)
+newParent family groupDepth parentColumnId placeholder child pending =
     Header
-        { id = formatHeaderId groupDepth parentColumnId (id child)
+        { id = formatHeaderId family groupDepth parentColumnId (id child)
         , columnId = parentColumnId
         , colSpan = 0
         , rowSpan = 0
@@ -292,9 +422,10 @@ closeSubHeaders (Header h) =
     Header { h | subHeaders = List.reverse h.subHeaders }
 
 
-formatHeaderId : Int -> String -> String -> String
-formatHeaderId atDepth cid childId =
-    [ if atDepth == 0 then
+formatHeaderId : Maybe String -> Int -> String -> String -> String
+formatHeaderId family atDepth cid childId =
+    [ Maybe.withDefault "" family
+    , if atDepth == 0 then
         ""
 
       else
@@ -304,6 +435,16 @@ formatHeaderId atDepth cid childId =
     ]
         |> List.filter (\part -> part /= "")
         |> String.join "_"
+
+
+formatHeaderGroupId : Maybe String -> Int -> String
+formatHeaderGroupId family atDepth =
+    case family of
+        Just name ->
+            name ++ "_" ++ String.fromInt atDepth
+
+        Nothing ->
+            String.fromInt atDepth
 
 
 

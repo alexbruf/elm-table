@@ -3,7 +3,9 @@ module Table.Internal.Types exposing
     , Column(..)
     , ColumnFields
     , ColumnFilter
+    , ColumnPinPosition(..)
     , ColumnPinning
+    , ColumnRegion(..)
     , Config
     , Expanded(..)
     , GroupedColumnMode(..)
@@ -11,15 +13,21 @@ module Table.Internal.Types exposing
     , HeaderFields
     , HeaderGroup
     , Pagination
+    , PinRowOptions
+    , PinnedColumns
+    , PinnedRowsSource
     , Row(..)
     , RowFields
     , RowModel
+    , RowPinPosition(..)
     , RowPinning
+    , SelectOptions
     , SizeDefaults
     , SortColumn
     , SortDir(..)
     , SortUndefined(..)
     , State
+    , SubRowSelection(..)
     )
 
 {-| The shared types of the package. Every other module builds on these.
@@ -142,10 +150,10 @@ type alias Config row =
     , paginateExpandedRows : Bool
     , pageCount : Maybe Int
     , rowCount : Maybe Int
-    , enableRowSelection : row -> Bool
-    , enableMultiRowSelection : Bool
-    , enableSubRowSelection : Bool
-    , enableRowPinning : Bool
+    , enableRowSelection : Row row -> Bool
+    , enableMultiRowSelection : Row row -> Bool
+    , enableSubRowSelection : Row row -> Bool
+    , enableRowPinning : Row row -> Bool
     , keepPinnedRows : Bool
     , enableColumnPinning : Bool
     , enableHiding : Bool
@@ -222,6 +230,76 @@ type alias RowPinning =
     { top : List String
     , bottom : List String
     }
+
+
+{-| Where a column is pinned. Mirrors TanStack's `'start' | 'end' | false`,
+renamed to the `left` / `right` wording `State.columnPinning` uses.
+-}
+type ColumnPinPosition
+    = PinnedLeft
+    | PinnedRight
+    | ColumnUnpinned
+
+
+{-| Which slice of the visible leaf columns a query is about. `AllColumns`
+is TanStack's absent `position` argument.
+-}
+type ColumnRegion
+    = AllColumns
+    | LeftColumns
+    | CenterColumns
+    | RightColumns
+
+
+{-| The three column slices of a pinned table.
+-}
+type alias PinnedColumns row =
+    { left : List (Column row)
+    , center : List (Column row)
+    , right : List (Column row)
+    }
+
+
+{-| Where a row is pinned. Mirrors TanStack's `'top' | 'bottom' | false`.
+-}
+type RowPinPosition
+    = PinnedTop
+    | PinnedBottom
+    | RowUnpinned
+
+
+{-| How much of a row's family `pinRow` pins along with it.
+-}
+type alias PinRowOptions =
+    { includeLeafRows : Bool
+    , includeParentRows : Bool
+    }
+
+
+{-| The two row models the pinned row lists read from: the model before
+pagination and the model of the current page.
+-}
+type alias PinnedRowsSource row =
+    { prePaginated : RowModel row
+    , current : RowModel row
+    }
+
+
+{-| TanStack's `ToggleSelectedOptions`.
+-}
+type alias SelectOptions =
+    { selectChildren : Bool
+    , deselectParents : Bool
+    }
+
+
+{-| How much of a parent row's sub-tree is selected. Mirrors TanStack's
+`isSubRowSelected` returning `false | 'some' | 'all'`.
+-}
+type SubRowSelection
+    = NoSubRowsSelected
+    | SomeSubRowsSelected
+    | AllSubRowsSelected
 
 
 {-| `ExpandAll` is TanStack's `expanded: true`.

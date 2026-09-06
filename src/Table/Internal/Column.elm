@@ -20,6 +20,8 @@ module Table.Internal.Column exposing
     , maxSize
     , minSize
     , orderColumns
+    , orderGroupedColumns
+    , orderedLeafColumns
     , parentId
     , size
     , visibleLeafColumns
@@ -58,7 +60,7 @@ Ports `core/columns/constructColumn.ts` and
 import Dict exposing (Dict)
 import Table.AggregationFn exposing (AggregationFn)
 import Table.FilterFn exposing (FilterFn)
-import Table.Internal.Types exposing (Column(..), ColumnFields, Config, Row, SortUndefined, State)
+import Table.Internal.Types exposing (Column(..), ColumnFields, Config, GroupedColumnMode(..), Row, SortUndefined, State)
 import Table.SortFn exposing (SortFn)
 import Table.Value exposing (Value)
 
@@ -436,25 +438,42 @@ leafColumns cfg =
     List.concatMap leafColumnsOf cfg.columns
 
 
-{-| The leaf columns a table renders: `State.columnOrder` applied, hidden
-columns dropped.
+{-| Every leaf column in table order: `State.columnOrder` applied first, then
+the grouped-column rules of `Config.groupedColumnMode`. Ports
+`table_getAllLeafColumns`.
+-}
+orderedLeafColumns : Config row -> State -> List (Column row)
+orderedLeafColumns cfg state =
+    orderColumns cfg state (leafColumns cfg)
 
-Column pinning splits this list into left, center, and right in phase 5; the
-split happens after this function, not inside it.
+
+{-| The leaf columns a table renders: table order applied, hidden columns
+dropped. Ports `table_getVisibleLeafColumns`.
+
+Column pinning splits this list into left, center, and right; the split
+happens after this function, not inside it, exactly as in TanStack.
 
 -}
 visibleLeafColumns : Config row -> State -> List (Column row)
 visibleLeafColumns cfg state =
-    leafColumns cfg
-        |> orderColumns state
+    orderedLeafColumns cfg state
         |> List.filter (isVisible state)
+
+
+{-| Put a column list in table order: `State.columnOrder` first, then
+`orderGroupedColumns`. Ports `table_getOrderColumnsFn`.
+-}
+orderColumns : Config row -> State -> List (Column row) -> List (Column row)
+orderColumns cfg state columns =
+    applyColumnOrder state columns
+        |> orderGroupedColumns cfg state
 
 
 {-| Reorder columns by `State.columnOrder`, keeping unlisted columns in their
 original order behind the listed ones.
 -}
-orderColumns : State -> List (Column row) -> List (Column row)
-orderColumns state columns =
+applyColumnOrder : State -> List (Column row) -> List (Column row)
+applyColumnOrder state columns =
     if List.isEmpty state.columnOrder then
         columns
 
@@ -471,6 +490,37 @@ orderColumns state columns =
         in
         List.filterMap (\cid -> Dict.get cid byId) wanted
             ++ List.filter (\c -> not (List.member (id c) wanted)) columns
+
+
+{-| Apply `Config.groupedColumnMode` to a leaf column list: `reorder` moves
+the grouped columns to the front in grouping order, `remove` drops them, and
+`ignore` leaves the list alone. Ports `orderColumns`.
+-}
+orderGroupedColumns : Config row -> State -> List (Column row) -> List (Column row)
+orderGroupedColumns cfg state columns =
+    if List.isEmpty state.grouping then
+        columns
+
+    else
+        let
+            nonGrouping : List (Column row)
+            nonGrouping =
+                List.filter (\c -> not (List.member (id c) state.grouping)) columns
+        in
+        case cfg.groupedColumnMode of
+            GroupedColumnsIgnore ->
+                columns
+
+            GroupedColumnsRemove ->
+                nonGrouping
+
+            GroupedColumnsReorder ->
+                let
+                    byId : Dict String (Column row)
+                    byId =
+                        List.foldl (\c acc -> Dict.insert (id c) c acc) Dict.empty columns
+                in
+                List.filterMap (\cid -> Dict.get cid byId) state.grouping ++ nonGrouping
 
 
 dedupe : List String -> List String -> List String
