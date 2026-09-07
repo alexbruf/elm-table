@@ -20,7 +20,7 @@ core → filtered → grouped → sorted → expanded → paginated
 (`filteredRowModel`, `sortedRowModel`, ...) so you can stop early, inspect an
 intermediate `RowModel`, or splice in your own manual stage.
 
-Demo: (see PORT_NOTES.md)
+Demo: <https://elm-table-demo.pages.dev> (5,000 generated keyword rows; sort, filter, group, expand, select, paginate, pin, with pipeline timings in the footer). Source in `demo/`, build with `make demo`.
 
 ## Install
 

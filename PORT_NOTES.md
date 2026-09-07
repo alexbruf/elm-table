@@ -142,6 +142,29 @@ Running log for the Elm port of TanStack Table core. See `SPEC.md` for the plan.
   `withDefault columnId` line; a `rowHasAggregatedValue` helper would
   mirror `cellIsGrouped`.
 
+### Phase 8: Usable demo
+
+- Merged. `demo/` is a standalone `Browser.element` app on a seeded
+  5,000-row keyword report (`elm/random`, 40 clusters, 0 to 3 variant
+  sub-rows per row, Regenerate with a seed input). Every feature in the
+  SPEC list is wired to package `State`; the footer shows the six stage
+  timings measured with `Time.now` tasks.
+- Deployed: <https://elm-table-demo.pages.dev> (Cloudflare Pages project
+  `elm-table-demo`; `make demo` builds `demo/dist`, `make deploy` runs
+  `demo/deploy.sh`). Build: `elm make --optimize` plus terser, 73 KB JS.
+- Reviewer script in Chrome against the deployed URL (intent = commercial,
+  group by cluster, sort by volume descending, expand the top group, select
+  three rows, page size 50): slowest interaction 65 ms total pipeline time
+  against the 200 ms budget; first load 34 ms. Date range verified through a
+  `Platform.worker` run because the browser automation cannot drive date
+  inputs.
+- Banned-word check (`demo/banned.sh`): 0 hits over sources, template, and
+  built files.
+- Notes for the API (no package bugs found): `selectedRowIds` counts
+  selected sub-rows too (7 for three parents with `enableSubRowSelection`);
+  `getRowCount` / `getPageCount` / `getCanNextPage` must be given the
+  pre-pagination model.
+
 ## Performance (merged tree, `make bench`, node 24, `--optimize`, 7 runs)
 
 | case | shape | min | median | target |
