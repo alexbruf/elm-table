@@ -20,6 +20,10 @@ core → filtered → grouped → sorted → expanded → paginated
 (`filteredRowModel`, `sortedRowModel`, ...) so you can stop early, inspect an
 intermediate `RowModel`, or splice in your own manual stage.
 
+Docs: <https://elm-table-docs.pages.dev> (guides and API reference, mirroring the TanStack Table docs)
+
+Examples: <https://elm-table-examples.pages.dev> (29 ports of the TanStack Table examples, each with its Elm source)
+
 Demo: <https://elm-table-demo.pages.dev> (5,000 generated keyword rows; sort, filter, group, expand, select, paginate, pin, with pipeline timings in the footer). Source in `demo/`, build with `make demo`.
 
 ## Install

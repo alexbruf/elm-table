@@ -165,6 +165,23 @@ Running log for the Elm port of TanStack Table core. See `SPEC.md` for the plan.
   `getRowCount` / `getPageCount` / `getCanNextPage` must be given the
   pre-pagination model.
 
+### Sites (after the spec): docs and examples
+
+- Docs: <https://elm-table-docs.pages.dev>, built from `docs-site/` (Markdown
+  plus a generated API reference from `docs.json`; every snippet compiles;
+  link checker and banned-word check in the build). Mirrors the TanStack
+  docs navigation page for page; see `reports/docs-site.md` for the
+  inventory.
+- Examples: <https://elm-table-examples.pages.dev>, built from
+  `examples-site/` (29 TanStack React examples ported one to one, each page
+  shows the Elm source; see `reports/examples-1.md` and `examples-2.md`).
+  Out of scope by design: column resizing by drag, virtualization, web
+  workers, and the component-library variants.
+- Hosting: the demo and docs projects live on one Cloudflare account, the
+  examples project on another, because the OAuth session for the first
+  account was gone by the time the examples were deployed. `make deploy`
+  targets take `CLOUDFLARE_ACCOUNT_ID` from the environment.
+
 ## Performance (merged tree, `make bench`, node 24, `--optimize`, 7 runs)
 
 | case | shape | min | median | target |
