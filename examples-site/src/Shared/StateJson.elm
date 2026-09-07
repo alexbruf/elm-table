@@ -100,7 +100,40 @@ encode state =
                 )
                 state.cellSelection
           )
+        , ( "columnResizing"
+          , Encode.object
+                [ ( "columnSizingStart"
+                  , Encode.list
+                        (\( columnId, size ) ->
+                            Encode.list identity [ Encode.string columnId, Encode.float size ]
+                        )
+                        state.columnResizing.columnSizingStart
+                  )
+                , ( "deltaOffset", encodeMaybeFloat state.columnResizing.deltaOffset )
+                , ( "deltaPercentage", encodeMaybeFloat state.columnResizing.deltaPercentage )
+                , ( "isResizingColumn"
+                  , case state.columnResizing.isResizingColumn of
+                        Just columnId ->
+                            Encode.string columnId
+
+                        Nothing ->
+                            Encode.bool False
+                  )
+                , ( "startOffset", encodeMaybeFloat state.columnResizing.startOffset )
+                , ( "startSize", encodeMaybeFloat state.columnResizing.startSize )
+                ]
+          )
         ]
+
+
+encodeMaybeFloat : Maybe Float -> Encode.Value
+encodeMaybeFloat value =
+    case value of
+        Just n ->
+            Encode.float n
+
+        Nothing ->
+            Encode.null
 
 
 {-| One cell value, the way `JSON.stringify` would write it.

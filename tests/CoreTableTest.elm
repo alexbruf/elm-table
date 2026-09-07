@@ -36,5 +36,13 @@ suite =
                     , columnSizing = Dict.empty
                     , rowPinning = { top = [], bottom = [] }
                     , cellSelection = []
+                    , columnResizing =
+                        { columnSizingStart = []
+                        , deltaOffset = Nothing
+                        , deltaPercentage = Nothing
+                        , isResizingColumn = Nothing
+                        , startOffset = Nothing
+                        , startSize = Nothing
+                        }
                     }
         ]

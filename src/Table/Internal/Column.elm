@@ -39,6 +39,7 @@ module Table.Internal.Column exposing
     , withEnableHiding
     , withEnableMultiSort
     , withEnablePinning
+    , withEnableResizing
     , withEnableSorting
     , withFilterFn
     , withFooter
@@ -149,6 +150,7 @@ emptyFields columnId =
     , aggregationFns = Nothing
     , contextAggregationFn = Nothing
     , getAggregationValue = Nothing
+    , enableResizing = True
     }
 
 
@@ -410,6 +412,14 @@ column-level `enableCellSelection`.
 withEnableCellSelection : Bool -> Column row -> Column row
 withEnableCellSelection enabled =
     update (\f -> { f | enableCellSelection = enabled })
+
+
+{-| Allow or forbid resizing this column by dragging. Ports the column-level
+`enableResizing`.
+-}
+withEnableResizing : Bool -> Column row -> Column row
+withEnableResizing enabled =
+    update (\f -> { f | enableResizing = enabled })
 
 
 

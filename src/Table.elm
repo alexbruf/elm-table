@@ -101,6 +101,12 @@ module Table
     , setColumnSize, setColumnSizing, resetColumnSize, resetColumnSizing
     , getHeaderSize, getHeaderStart
     , totalSize, leftTotalSize, centerTotalSize, rightTotalSize
+    , ColumnResizingState, ColumnResizeMode, ColumnResizeDirection
+    , resizeOnChange, resizeOnEnd, resizeLtr, resizeRtl
+    , withEnableResizing
+    , columnCanResize, columnIsResizing, headerCanResize, headerIsResizing
+    , startColumnResize, updateColumnResize, endColumnResize
+    , setColumnResizing, resetColumnResizing
     , autoReset
     , withAutoResetAll, withAutoResetPageIndex, withAutoResetExpanded
     , withAutoResetSorting, withAutoResetCellSelection
@@ -134,7 +140,7 @@ module Table
     , intersectCellSelectionBounds, subtractCellSelectionBounds, addCellSelectionBounds
     , mergeAdjacentCellSelectionBounds, expandCellSelectionBounds
     , applyCellSelectionBoundsOperations
-    -- Phase 10
+    -- Phase 9 and 10
     -- Phase 3 to 6 entries are the blocks above; elm-format hoists these
     -- markers to the end of the exposing list.
     )
@@ -428,6 +434,24 @@ Which columns render, in what order, and how wide each one is.
 @docs totalSize, leftTotalSize, centerTotalSize, rightTotalSize
 
 
+# Column resizing
+
+Dragging a column edge to a new width. The package holds the transient state
+of the drag and does the arithmetic; the pointer events, the handle, and the
+subscription are yours.
+
+@docs ColumnResizingState, ColumnResizeMode, ColumnResizeDirection
+@docs resizeOnChange, resizeOnEnd, resizeLtr, resizeRtl
+
+The two unions are abstract here for the same reason as the ones above, so
+they come with one function per variant.
+
+@docs withEnableResizing
+@docs columnCanResize, columnIsResizing, headerCanResize, headerIsResizing
+@docs startColumnResize, updateColumnResize, endColumnResize
+@docs setColumnResizing, resetColumnResizing
+
+
 # Auto reset, filter meta, aggregation options
 
 The three corners of TanStack that need a caller to stand in for the table
@@ -556,6 +580,7 @@ import Table.Internal.CellSpanning as CellSpanning
 import Table.Internal.Column as Column
 import Table.Internal.ColumnOrdering as ColumnOrdering
 import Table.Internal.ColumnPinning as ColumnPinning
+import Table.Internal.ColumnResizing as ColumnResizing
 import Table.Internal.ColumnSizing as ColumnSizing
 import Table.Internal.ColumnVisibility as ColumnVisibility
 import Table.Internal.Config as Config
@@ -3805,6 +3830,175 @@ selection as disjoint rectangles.
 applyCellSelectionBoundsOperations : List ( CellSelectionOperation, CellSelectionBounds ) -> List CellSelectionBounds
 applyCellSelectionBoundsOperations =
     CellSelectionGeometry.applyOperations
+
+
+
+-- PHASE 9
+-- Column resizing.
+-- TYPES
+
+
+{-| The transient state of one resize drag, `State.columnResizing`. It is
+empty between drags and is written by the three transitions below.
+
+    { columnSizingStart = List ( String, Float )
+    , deltaOffset = Maybe Float
+    , deltaPercentage = Maybe Float
+    , isResizingColumn = Maybe String
+    , startOffset = Maybe Float
+    , startSize = Maybe Float
+    }
+
+`columnSizingStart` is the width every leaf header under the dragged header
+had when the drag began. TanStack's `isResizingColumn: false | string` is a
+`Maybe String` here.
+
+-}
+type alias ColumnResizingState =
+    Types.ColumnResizingState
+
+
+{-| When a drag commits the widths it computes: [`resizeOnChange`](#resizeOnChange)
+on every pointer move, [`resizeOnEnd`](#resizeOnEnd) only when the drag ends.
+-}
+type alias ColumnResizeMode =
+    Types.ColumnResizeMode
+
+
+{-| Which way a drag counts as growth: [`resizeLtr`](#resizeLtr) or
+[`resizeRtl`](#resizeRtl).
+-}
+type alias ColumnResizeDirection =
+    Types.ColumnResizeDirection
+
+
+{-| Commit the new widths on every pointer move. This is
+`Config.columnResizeMode`'s default here.
+-}
+resizeOnChange : ColumnResizeMode
+resizeOnChange =
+    Types.ResizeOnChange
+
+
+{-| Commit the new widths only when the drag ends. Until then the drag shows
+in `State.columnResizing.deltaOffset`, which is what a preview indicator
+renders from.
+-}
+resizeOnEnd : ColumnResizeMode
+resizeOnEnd =
+    Types.ResizeOnEnd
+
+
+{-| A left-to-right layout: dragging right widens the column. TanStack's
+`'ltr'`.
+-}
+resizeLtr : ColumnResizeDirection
+resizeLtr =
+    Types.Ltr
+
+
+{-| A right-to-left layout: dragging left widens the column. TanStack's
+`'rtl'`.
+-}
+resizeRtl : ColumnResizeDirection
+resizeRtl =
+    Types.Rtl
+
+
+
+-- COLUMN RESIZING
+
+
+{-| Allow or forbid resizing one column. Ports the column-level
+`enableResizing`.
+-}
+withEnableResizing : Bool -> Column row -> Column row
+withEnableResizing =
+    Column.withEnableResizing
+
+
+{-| Can this column be resized? Both the column's
+[`withEnableResizing`](#withEnableResizing) and the table's
+`Config.enableColumnResizing` default to `True`.
+-}
+columnCanResize : Config row -> Column row -> Bool
+columnCanResize =
+    ColumnResizing.canResize
+
+
+{-| Is this column the one being dragged?
+-}
+columnIsResizing : State -> Column row -> Bool
+columnIsResizing =
+    ColumnResizing.isResizing
+
+
+{-| Can this header's column be resized? This is the one to ask before
+rendering a resize handle on a header.
+-}
+headerCanResize : Config row -> Header row -> Bool
+headerCanResize =
+    ColumnResizing.headerCanResize
+
+
+{-| Is this header's column the one being dragged?
+-}
+headerIsResizing : State -> Header row -> Bool
+headerIsResizing =
+    ColumnResizing.headerIsResizing
+
+
+{-| Begin a drag on a header at the pointer's `clientX`. Records where the
+pointer started, how wide the header was, and how wide every leaf header
+under it was. A column that cannot be resized leaves the state alone.
+
+This is the `mousedown` or `touchstart` half of TanStack's
+`header.getResizeHandler()`.
+
+-}
+startColumnResize : Config row -> State -> Header row -> Float -> State
+startColumnResize =
+    ColumnResizing.startResize
+
+
+{-| Move the drag to a new `clientX`. Writes `deltaOffset` and
+`deltaPercentage`, and in [`resizeOnChange`](#resizeOnChange) mode commits the
+new widths to `State.columnSizing`. With no drag in progress nothing happens.
+
+This is the `mousemove` or `touchmove` half of the handler.
+
+-}
+updateColumnResize : Config row -> Float -> State -> State
+updateColumnResize =
+    ColumnResizing.updateResize
+
+
+{-| End the drag: commit the widths the last
+[`updateColumnResize`](#updateColumnResize) computed, then clear
+`State.columnResizing`. Call `updateColumnResize` first with the position of
+the event that ended the drag, when it carries one.
+
+This is the `mouseup`, `touchend`, or `touchcancel` half of the handler.
+
+-}
+endColumnResize : Config row -> State -> State
+endColumnResize =
+    ColumnResizing.endResize
+
+
+{-| Replace the whole transient slice. Ports `table.setColumnResizing`.
+-}
+setColumnResizing : ColumnResizingState -> State -> State
+setColumnResizing =
+    ColumnResizing.setResizing
+
+
+{-| Drop the transient slice back to "no drag in progress". Ports
+`table.resetHeaderSizeInfo(true)`.
+-}
+resetColumnResizing : State -> State
+resetColumnResizing =
+    ColumnResizing.resetResizing
 
 
 
