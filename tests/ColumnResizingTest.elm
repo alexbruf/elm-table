@@ -35,12 +35,7 @@ say otherwise; the package default is `resizeOnEnd`, as in TanStack.
 -}
 config : Table.Config Person
 config =
-    let
-        base : Table.Config Person
-        base =
-            Fixtures.config
-    in
-    { base | columnResizeMode = Table.resizeOnChange }
+    onChangeMode Fixtures.config
 
 
 state : Table.State
@@ -69,11 +64,20 @@ fake reports `getSize: () => 0` for both the header and its leaf column.
 -}
 zeroWidth : Table.Config Person
 zeroWidth =
-    Table.config
-        [ Table.column "firstName" (.firstName >> Value.String)
-            |> Table.withSize 0
-            |> Table.withMinSize 0
-        ]
+    onChangeMode
+        (Table.config
+            [ Table.column "firstName" (.firstName >> Value.String)
+                |> Table.withSize 0
+                |> Table.withMinSize 0
+            ]
+        )
+
+
+{-| Commit sizes on every move, as TanStack's tests expect.
+-}
+onChangeMode : Table.Config Person -> Table.Config Person
+onChangeMode cfg =
+    { cfg | columnResizeMode = Table.resizeOnChange }
 
 
 columnNamed : Table.Config Person -> String -> Table.Column Person
@@ -366,12 +370,14 @@ suite =
                     let
                         cfg : Table.Config Person
                         cfg =
-                            Table.config
-                                [ Table.group "name"
-                                    [ Table.column "firstName" (.firstName >> Value.String)
-                                    , Table.column "lastName" (.lastName >> Value.String)
+                            onChangeMode
+                                (Table.config
+                                    [ Table.group "name"
+                                        [ Table.column "firstName" (.firstName >> Value.String)
+                                        , Table.column "lastName" (.lastName >> Value.String)
+                                        ]
                                     ]
-                                ]
+                                )
 
                         groupHeader : List (Table.Header Person)
                         groupHeader =
