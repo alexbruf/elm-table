@@ -7,16 +7,20 @@
 set -e
 
 PRESET_ACCOUNT_ID="${CLOUDFLARE_ACCOUNT_ID:-}"
+PRESET_API_TOKEN="${CLOUDFLARE_API_TOKEN:-}"
 set -a
 if [ -f ../.env ]; then
   . ../.env
 fi
 set +a
-# An explicit environment value wins over the file.
+# Explicit environment values win over the file.
 if [ -n "$PRESET_ACCOUNT_ID" ]; then
   CLOUDFLARE_ACCOUNT_ID="$PRESET_ACCOUNT_ID"
 fi
-# An empty token from the file would make wrangler ignore its own login.
+if [ -n "$PRESET_API_TOKEN" ]; then
+  CLOUDFLARE_API_TOKEN="$PRESET_API_TOKEN"
+fi
+# An empty token would make wrangler ignore its own OAuth login.
 if [ -z "${CLOUDFLARE_API_TOKEN:-}" ]; then
   unset CLOUDFLARE_API_TOKEN
 fi
