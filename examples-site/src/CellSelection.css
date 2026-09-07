@@ -1,0 +1,4 @@
+/* The focusable grid wrapper the keyboard shortcuts are scoped to. */
+.grid-focus { outline: none; overflow-x: auto; }
+.grid-focus:focus-visible { box-shadow: 0 0 0 2px var(--accent-wash); }
+.grid-focus td { user-select: none; cursor: cell; }

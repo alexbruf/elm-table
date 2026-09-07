@@ -1,0 +1,14 @@
+/* The <div/> table used by the second and third renderings, from the React
+   example's index.css. */
+.divTable {
+  border: 1px solid var(--line);
+  width: fit-content;
+  border-collapse: collapse;
+  border-spacing: 0;
+}
+.divTable .tr { display: flex; width: fit-content; height: 30px; }
+.divTable .th,
+.divTable .td { box-shadow: inset 0 0 0 1px var(--line); padding: 2px 4px; height: 30px; overflow: hidden; }
+.divTable .th { font-weight: bold; background: #f6f7f9; }
+.column-size-input { width: 6rem; margin-left: 0.5rem; padding: 2px 4px; border: 1px solid var(--line); border-radius: 4px; }
+.size-inputs { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; }

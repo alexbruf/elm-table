@@ -1,0 +1,7 @@
+/* The three panels wrap into a grid when the viewport is wide enough. */
+.example-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 1rem; align-items: start; }
+.example-panel { min-width: 0; overflow-x: auto; }
+.example-panel h2 { margin-top: 0; }
+.span-cell { vertical-align: middle; text-align: center; background: #fbfbfc; }
+.subtotal-row td { font-weight: 600; background: #f6f7f9; }
+td.cell-selected, td.span-cell.cell-selected { background: var(--accent-wash); }
