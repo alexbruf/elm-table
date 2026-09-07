@@ -177,10 +177,12 @@ Running log for the Elm port of TanStack Table core. See `SPEC.md` for the plan.
   shows the Elm source; see `reports/examples-1.md` and `examples-2.md`).
   Out of scope by design: column resizing by drag, virtualization, web
   workers, and the component-library variants.
-- Hosting: the demo and docs projects live on one Cloudflare account, the
-  examples project on another, because the OAuth session for the first
-  account was gone by the time the examples were deployed. `make deploy`
-  targets take `CLOUDFLARE_ACCOUNT_ID` from the environment.
+- Hosting: Cloudflare Pages. `elm-table-demo` and `elm-table-docs` live on
+  account `8883f7ea…`, `elm-table-examples` on account `26108e32…` (the
+  first account's project list was not visible through the API token at
+  deploy time, so the examples project was created where it was). Each
+  `deploy.sh` takes `CLOUDFLARE_ACCOUNT_ID` from the environment or the
+  repo env file.
 
 ## Performance (merged tree, `make bench`, node 24, `--optimize`, 7 runs)
 
