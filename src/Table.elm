@@ -21,23 +21,23 @@ module Table
     , columnSize, columnMinSize, columnMaxSize
     , allColumns, leafColumns, visibleLeafColumns, findColumn
     , columnFlatColumns, columnLeafColumns
+    , headerGroups, footerGroups, flatHeaders, leafHeaders, getLeafHeaders
+    , headerId, headerColumnId, headerColSpan, headerRowSpan, headerDepth, headerIndex
+    , headerIsPlaceholder, headerPlaceholderId, headerSubHeaders
     , rowId, rowIndex, rowDepth, rowOriginal, rowSubRows, rowParentId, rowOriginalSubRows
     , rowGroupingColumnId, rowGroupingValue, rowLeafRows, rowAggregatedValues
     , getValue, getUniqueValues, getLeafRows, getParentRow, getParentRows, getAllCells
     , findRow, maxSubRowDepth
-    , headerGroups, footerGroups, flatHeaders, leafHeaders, getLeafHeaders
-    , headerId, headerColumnId, headerColSpan, headerRowSpan, headerDepth, headerIndex
-    , headerIsPlaceholder, headerPlaceholderId, headerSubHeaders
     , rows, rowsFromList, coreRowModel, coreRowModelFromList
     , filteredRowModel, groupedRowModel, sortedRowModel, expandedRowModel, paginatedRowModel
     , facetedUniqueValues, facetedMinMax
-    , SortDir, sortAsc, sortDesc
+    , facetedRowModel, globalFacetKey
     , getCanFilter, getIsFiltered, getFilterValue, getFilterIndex
     , getFilterFn, getAutoFilterFn, shouldAutoRemoveFilter
     , setColumnFilter, setColumnFilters, resetColumnFilters
     , getCanGlobalFilter, getGlobalFilterFn, globalAutoFilterFn
     , setGlobalFilter, resetGlobalFilter
-    , facetedRowModel, globalFacetKey
+    , SortDir, sortAsc, sortDesc
     , getCanSort, getCanMultiSort, getIsSorted, getSortIndex
     , getAutoSortFn, getSortFn, getAutoSortDir, getFirstSortDir, getNextSortingOrder
     , toggleSort, setSorting, clearSorting, resetSorting
@@ -58,19 +58,24 @@ module Table
     , getCanExpand, getIsExpanded, getIsAllParentsExpanded
     , getCanSomeRowsExpand, getIsSomeRowsExpanded, getIsAllRowsExpanded, getExpandedDepth
     , toggleExpanded, toggleAllRowsExpanded, setExpanded, resetExpanded
-    , ColumnPinPosition, ColumnRegion, RowPinPosition, SubRowSelection
-    , SelectOptions, PinRowOptions, PinnedRowsSource, PinnedColumns
+    , SubRowSelection, SelectOptions
+    , noSubRowsSelected, someSubRowsSelected, allSubRowsSelected
+    , defaultSelectOptions
+    , toggleRowSelected, toggleRowSelectedWith
+    , toggleAllRowsSelected, toggleAllPageRowsSelected, deselectAllRows
+    , setRowSelection, resetRowSelection
+    , selectRange, selectRangeWith, canSelectRange
+    , getIsRowSelected, getIsSomeRowsSelected
+    , getIsAllRowsSelected, getIsAllPageRowsSelected, getIsSomePageRowsSelected
+    , getCanSelect, getCanSelectSubRows, getCanMultiSelect
+    , getIsSomeSelected, getIsAllSubRowsSelected, subRowSelection
+    , selectedRowIds, selectedRowModel
+    , ColumnPinPosition, ColumnRegion, RowPinPosition
+    , PinRowOptions, PinnedRowsSource, PinnedColumns
     , pinnedLeft, pinnedRight, columnUnpinned
     , allColumnsRegion, leftColumnsRegion, centerColumnsRegion, rightColumnsRegion
     , pinnedTop, pinnedBottom, rowUnpinned
-    , noSubRowsSelected, someSubRowsSelected, allSubRowsSelected
-    , defaultSelectOptions, defaultPinRowOptions
-    , columnIsVisible, columnCanHide, toggleColumnVisibility, setColumnVisibility
-    , resetColumnVisibility, toggleAllColumnsVisible
-    , isAllColumnsVisible, isSomeColumnsVisible, visibleFlatColumns
-    , visibleCells, visibleCellsByColumnId
-    , setColumnOrder, resetColumnOrder, orderColumns, orderGroupedColumns
-    , columnIndex, columnIsFirst, columnIsLast
+    , defaultPinRowOptions
     , pinColumn, setColumnPinning, resetColumnPinning
     , columnCanPin, columnIsPinned, columnPinnedIndex
     , isSomeColumnsPinned, isSomeColumnsPinnedLeft, isSomeColumnsPinnedRight
@@ -82,23 +87,20 @@ module Table
     , leftFlatHeaders, centerFlatHeaders, rightFlatHeaders
     , leftLeafHeaders, centerLeafHeaders, rightLeafHeaders
     , leftVisibleCells, centerVisibleCells, rightVisibleCells
-    , getColumnSize, getColumnStart, getColumnAfter
-    , setColumnSize, setColumnSizing, resetColumnSize, resetColumnSizing
-    , getHeaderSize, getHeaderStart
-    , totalSize, leftTotalSize, centerTotalSize, rightTotalSize
-    , toggleRowSelected, toggleRowSelectedWith
-    , toggleAllRowsSelected, toggleAllPageRowsSelected, deselectAllRows
-    , setRowSelection, resetRowSelection
-    , selectRange, selectRangeWith, canSelectRange
-    , getIsRowSelected, getIsSomeRowsSelected
-    , getIsAllRowsSelected, getIsAllPageRowsSelected, getIsSomePageRowsSelected
-    , getCanSelect, getCanSelectSubRows, getCanMultiSelect
-    , getIsSomeSelected, getIsAllSubRowsSelected, subRowSelection
-    , selectedRowIds, selectedRowModel
     , pinRow, pinRowWith, setRowPinning, resetRowPinning
     , getIsRowPinned, getRowPinnedIndex, getCanPinRow
     , isSomeRowsPinned, isSomeRowsPinnedTop, isSomeRowsPinnedBottom
     , topRows, bottomRows, centerRows
+    , columnIsVisible, columnCanHide, toggleColumnVisibility, setColumnVisibility
+    , resetColumnVisibility, toggleAllColumnsVisible
+    , isAllColumnsVisible, isSomeColumnsVisible, visibleFlatColumns
+    , visibleCells, visibleCellsByColumnId
+    , setColumnOrder, resetColumnOrder, orderColumns, orderGroupedColumns
+    , columnIndex, columnIsFirst, columnIsLast
+    , getColumnSize, getColumnStart, getColumnAfter
+    , setColumnSize, setColumnSizing, resetColumnSize, resetColumnSizing
+    , getHeaderSize, getHeaderStart
+    , totalSize, leftTotalSize, centerTotalSize, rightTotalSize
     , CellSpanIndex, RowSpanContext
     , withCellSpanning, withEnableCellSpanning
     , withSpanRows, withSpanRowsWhen, withSpanColumns, spanAllColumns
@@ -133,7 +135,10 @@ There is no table instance. You own the `State`, you own the data, and every
 function here takes a `Config row` and a `State` and gives you a value back.
 
 
-# Phase 2
+# Columns and headers
+
+Column and header types, the builders that assemble a `Config row`'s column
+list, and the readers that walk it back.
 
 
 ## Types
@@ -177,19 +182,25 @@ function per variant.
 @docs columnFlatColumns, columnLeafColumns
 
 
+## Headers
+
+@docs headerGroups, footerGroups, flatHeaders, leafHeaders, getLeafHeaders
+@docs headerId, headerColumnId, headerColSpan, headerRowSpan, headerDepth, headerIndex
+@docs headerIsPlaceholder, headerPlaceholderId, headerSubHeaders
+
+
+# Row models
+
+The pipeline that turns your data into a row tree, the readers that walk one
+row, and the faceted values later stages sample from it.
+
+
 ## Reading rows
 
 @docs rowId, rowIndex, rowDepth, rowOriginal, rowSubRows, rowParentId, rowOriginalSubRows
 @docs rowGroupingColumnId, rowGroupingValue, rowLeafRows, rowAggregatedValues
 @docs getValue, getUniqueValues, getLeafRows, getParentRow, getParentRows, getAllCells
 @docs findRow, maxSubRowDepth
-
-
-## Headers
-
-@docs headerGroups, footerGroups, flatHeaders, leafHeaders, getLeafHeaders
-@docs headerId, headerColumnId, headerColSpan, headerRowSpan, headerDepth, headerIndex
-@docs headerIsPlaceholder, headerPlaceholderId, headerSubHeaders
 
 
 ## The pipeline
@@ -201,20 +212,16 @@ function per variant.
 ## Faceting
 
 @docs facetedUniqueValues, facetedMinMax
+@docs facetedRowModel, globalFacetKey
 
 
-# Phase 3
+# Filtering
 
-Filtering, faceting, sorting, and pagination. Every reader that has to guess
-something from the data (`'auto'` filter and sort functions, the default
-global-filter predicate, the automatic first sort direction) takes a
-`RowModel row` to sample, exactly like TanStack, which samples the core or
-filtered row model for the same job.
-
-
-## Sort direction
-
-@docs SortDir, sortAsc, sortDesc
+Column filters narrow a row model down to the rows that match; the global
+filter runs the same comparison across every column that allows it. Every
+reader that has to guess something from the data (an `'auto'` filter
+function, for instance) takes a `RowModel row` to sample, exactly like
+TanStack, which samples the core or filtered row model for the same job.
 
 
 ## Column filter state
@@ -230,9 +237,15 @@ filtered row model for the same job.
 @docs setGlobalFilter, resetGlobalFilter
 
 
-## Faceted row model
+# Sorting
 
-@docs facetedRowModel, globalFacetKey
+One or more columns order the rows; `withSortDescFirst`, `withInvertSorting`,
+and `withSortUndefined` tune how a single column compares.
+
+
+## Sort direction
+
+@docs SortDir, sortAsc, sortDesc
 
 
 ## Sorting state
@@ -240,6 +253,13 @@ filtered row model for the same job.
 @docs getCanSort, getCanMultiSort, getIsSorted, getSortIndex
 @docs getAutoSortFn, getSortFn, getAutoSortDir, getFirstSortDir, getNextSortingOrder
 @docs toggleSort, setSorting, clearSorting, resetSorting
+
+
+# Pagination
+
+Slices the pre-pagination row model into pages; `Config.pageCount` and
+`Config.rowCount` stand in for a server-side count when the table is not
+paginating in memory.
 
 
 ## Pagination state
@@ -252,12 +272,11 @@ filtered row model for the same job.
 @docs previousPage, nextPage, firstPage, lastPage, unlimitedPageSize
 
 
-# Phase 4
+# Grouping and aggregation
 
-Grouping, aggregation, and expansion. The grouped row model replaces the rows
-with one group row per distinct value of every column in `State.grouping`,
-recursively; the expanded row model splices the sub-rows of the expanded rows
-back into the row list.
+The grouped row model replaces the rows with one group row per distinct
+value of every column in `State.grouping`, recursively, and rolls up every
+other column with an `AggregationFn`.
 
 Group rows carry [`rowGroupingColumnId`](#rowGroupingColumnId),
 [`rowGroupingValue`](#rowGroupingValue), [`rowLeafRows`](#rowLeafRows), and
@@ -284,6 +303,12 @@ Group rows carry [`rowGroupingColumnId`](#rowGroupingColumnId),
 @docs aggregationValue, aggregationValueOf, cellIsAggregated
 
 
+# Expanding
+
+Splices the sub-rows of expanded rows back into the row list, according to
+`State.expanded`.
+
+
 ## Expanded state
 
 @docs preExpandedRowModel
@@ -292,40 +317,54 @@ Group rows carry [`rowGroupingColumnId`](#rowGroupingColumnId),
 @docs toggleExpanded, toggleAllRowsExpanded, setExpanded, resetExpanded
 
 
-# Phase 5
+# Row selection
 
-Selection, pinning, ordering, visibility, and sizing. Every transition is
-`... -> State -> State` so it pipes, and every query takes the `Config` and
-the `State` first, then the row model or column it is about.
+Row selection propagates to sub-rows and reports `isSomeSelected` and
+`isAllSelected` per parent. Every transition is `... -> State -> State` so it
+pipes, and every query takes the `Config` and the `State` first, then the
+row model or column it is about.
 
 
-## Phase 5 types
+## Selection types
 
-@docs ColumnPinPosition, ColumnRegion, RowPinPosition, SubRowSelection
-@docs SelectOptions, PinRowOptions, PinnedRowsSource, PinnedColumns
+@docs SubRowSelection, SelectOptions
+@docs noSubRowsSelected, someSubRowsSelected, allSubRowsSelected
+@docs defaultSelectOptions
 
-The four unions are abstract for the same reason as the phase 2 ones, so
-they come with one function per variant.
+These are abstract for the same reason as the types above, so they come with
+one function per variant.
 
+
+## Selection state
+
+@docs toggleRowSelected, toggleRowSelectedWith
+@docs toggleAllRowsSelected, toggleAllPageRowsSelected, deselectAllRows
+@docs setRowSelection, resetRowSelection
+@docs selectRange, selectRangeWith, canSelectRange
+@docs getIsRowSelected, getIsSomeRowsSelected
+@docs getIsAllRowsSelected, getIsAllPageRowsSelected, getIsSomePageRowsSelected
+@docs getCanSelect, getCanSelectSubRows, getCanMultiSelect
+@docs getIsSomeSelected, getIsAllSubRowsSelected, subRowSelection
+@docs selectedRowIds, selectedRowModel
+
+
+# Pinning
+
+Column pinning returns left, center, and right leaf column lists; row
+pinning does the same for rows. Neither one touches the DOM.
+
+
+## Pinning types
+
+@docs ColumnPinPosition, ColumnRegion, RowPinPosition
+@docs PinRowOptions, PinnedRowsSource, PinnedColumns
 @docs pinnedLeft, pinnedRight, columnUnpinned
 @docs allColumnsRegion, leftColumnsRegion, centerColumnsRegion, rightColumnsRegion
 @docs pinnedTop, pinnedBottom, rowUnpinned
-@docs noSubRowsSelected, someSubRowsSelected, allSubRowsSelected
-@docs defaultSelectOptions, defaultPinRowOptions
+@docs defaultPinRowOptions
 
-
-## Column visibility
-
-@docs columnIsVisible, columnCanHide, toggleColumnVisibility, setColumnVisibility
-@docs resetColumnVisibility, toggleAllColumnsVisible
-@docs isAllColumnsVisible, isSomeColumnsVisible, visibleFlatColumns
-@docs visibleCells, visibleCellsByColumnId
-
-
-## Column order
-
-@docs setColumnOrder, resetColumnOrder, orderColumns, orderGroupedColumns
-@docs columnIndex, columnIsFirst, columnIsLast
+These are abstract for the same reason as the types above, so they come with
+one function per variant.
 
 
 ## Column pinning
@@ -343,27 +382,6 @@ they come with one function per variant.
 @docs leftVisibleCells, centerVisibleCells, rightVisibleCells
 
 
-## Column sizing
-
-@docs getColumnSize, getColumnStart, getColumnAfter
-@docs setColumnSize, setColumnSizing, resetColumnSize, resetColumnSizing
-@docs getHeaderSize, getHeaderStart
-@docs totalSize, leftTotalSize, centerTotalSize, rightTotalSize
-
-
-## Row selection
-
-@docs toggleRowSelected, toggleRowSelectedWith
-@docs toggleAllRowsSelected, toggleAllPageRowsSelected, deselectAllRows
-@docs setRowSelection, resetRowSelection
-@docs selectRange, selectRangeWith, canSelectRange
-@docs getIsRowSelected, getIsSomeRowsSelected
-@docs getIsAllRowsSelected, getIsAllPageRowsSelected, getIsSomePageRowsSelected
-@docs getCanSelect, getCanSelectSubRows, getCanMultiSelect
-@docs getIsSomeSelected, getIsAllSubRowsSelected, subRowSelection
-@docs selectedRowIds, selectedRowModel
-
-
 ## Row pinning
 
 @docs pinRow, pinRowWith, setRowPinning, resetRowPinning
@@ -372,10 +390,41 @@ they come with one function per variant.
 @docs topRows, bottomRows, centerRows
 
 
-# Phase 6
+# Column ordering, visibility and sizing
+
+Which columns render, in what order, and how wide each one is.
 
 
-## Phase 6 types
+## Column visibility
+
+@docs columnIsVisible, columnCanHide, toggleColumnVisibility, setColumnVisibility
+@docs resetColumnVisibility, toggleAllColumnsVisible
+@docs isAllColumnsVisible, isSomeColumnsVisible, visibleFlatColumns
+@docs visibleCells, visibleCellsByColumnId
+
+
+## Column order
+
+@docs setColumnOrder, resetColumnOrder, orderColumns, orderGroupedColumns
+@docs columnIndex, columnIsFirst, columnIsLast
+
+
+## Column sizing
+
+@docs getColumnSize, getColumnStart, getColumnAfter
+@docs setColumnSize, setColumnSizing, resetColumnSize, resetColumnSizing
+@docs getHeaderSize, getHeaderStart
+@docs totalSize, leftTotalSize, centerTotalSize, rightTotalSize
+
+
+# Cell spanning and cell selection
+
+Spans merge adjacent cells; cell selection tracks rectangular ranges,
+focus, and keyboard movement over the visible grid. Optional; ignore this
+section if your table does not need either.
+
+
+## Span index types
 
 @docs CellSpanIndex, RowSpanContext
 

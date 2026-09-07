@@ -1,4 +1,4 @@
-.PHONY: check test format format-check review docs bench demo deploy clean
+.PHONY: check test format format-check review docs bench demo deploy clean example
 
 check: format-check review test
 
@@ -28,3 +28,6 @@ deploy:
 
 clean:
 	rm -rf elm-stuff docs.json demo/dist demo/elm-stuff examples/elm-stuff bench/elm-stuff
+
+example:
+	cd examples && elm make src/Main.elm --output=/dev/null

@@ -51,7 +51,7 @@ num =
 
 nan : Float
 nan =
-    sqrt -1
+    0 / 0
 
 
 infinity : Float

@@ -3,7 +3,10 @@ module CoreColumnsTest exposing (suite)
 {-| Ports `tests/unit/core/columns/constructColumn.test.ts` and
 `tests/unit/core/columns/coreColumnsFeature.utils.test.ts`.
 
-Excluded cases are listed in `reports/phase-2.md`.
+Excluded cases are listed in `reports/phase-2.md`. Two of them ("should
+render accessor keys as the default header" and "should stringify values in
+the default cell renderer") are re-homed here as data-only assertions; see
+`reports/phase-7.md` for why.
 
 -}
 
@@ -200,5 +203,34 @@ suite =
                                 )
                             )
                         |> Expect.equal (Just ( 200, 40, ( 400, 400 ) ))
+
+            -- Re-homed from `reports/phase-2.md`'s excluded cases 37 and 38.
+            -- Both vitest cases assert a render template
+            -- (`defaultColumnDef.header` / `defaultColumnDef.cell`); this
+            -- port has no render layer, so only the data half of each is
+            -- expressible here. The render half — falling back to the
+            -- column id when no header was set, and stringifying whatever
+            -- `getValue` returns — is a view concern left to the caller,
+            -- exactly as `viewHeaderCell` in `examples/src/Main.elm` does
+            -- with `Maybe.withDefault columnId (Table.columnHeader col)`.
+            , test "should render accessor keys as the default header (data half: columnHeader is Nothing, columnId is the accessor key)" <|
+                \_ ->
+                    let
+                        col =
+                            Table.column "fn-col" (.a >> Value.String)
+                    in
+                    Expect.equal ( Table.columnHeader col, Table.columnId col ) ( Nothing, "fn-col" )
+            , test "should stringify values in the default cell renderer (data half: Value.toString on getValue)" <|
+                \_ ->
+                    let
+                        numericConfig =
+                            Table.config [ Table.column "n" (\r -> Value.Number r.n) ]
+
+                        model =
+                            Table.coreRowModelFromList numericConfig Table.initialState [ { n = 42 } ]
+                    in
+                    Table.findRow model "0"
+                        |> Maybe.map (\row -> Value.toString (Table.getValue numericConfig row "n"))
+                        |> Expect.equal (Just "42")
             ]
         ]
