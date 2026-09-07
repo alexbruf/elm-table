@@ -130,7 +130,7 @@ toNumber value =
 
 notANumber : Float
 notANumber =
-    sqrt -1
+    0 / 0
 
 
 stringToNumber : String -> Float
