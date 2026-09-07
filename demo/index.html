@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Keyword report — elm-table</title>
+<meta name="description" content="A 5,000 row keyword report built on viewengine/elm-table, a headless table package for Elm.">
+<style>
+:root {
+  --ink: #16181d;
+  --ink-soft: #5b6270;
+  --ink-faint: #8b919c;
+  --line: #e8e9ec;
+  --line-soft: #f1f2f4;
+  --paper: #ffffff;
+  --ground: #fbfbfc;
+  --accent: #2f57d8;
+  --accent-wash: #eef2ff;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: var(--ground);
+  color: var(--ink);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+button, input, select { font: inherit; color: inherit; }
+
+.page {
+  max-width: 1440px;
+  margin: 0 auto;
+  padding: 72px 40px 96px;
+}
+
+/* masthead */
+
+.masthead { margin-bottom: 56px; }
+
+.title {
+  margin: 0 0 10px;
+  font-size: 34px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+.sub {
+  margin: 0;
+  color: var(--ink-soft);
+  font-size: 15px;
+}
+
+/* toolbar */
+
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 32px 40px;
+  margin-bottom: 40px;
+}
+
+.tool { display: flex; flex-direction: column; gap: 10px; }
+
+.tool-label {
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+
+.tool-body { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+
+.search {
+  width: 280px;
+  padding: 8px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--paper);
+  outline: none;
+}
+
+.search:focus { border-color: var(--accent); }
+
+.seed {
+  width: 96px;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--paper);
+  outline: none;
+}
+
+.seed:focus { border-color: var(--accent); }
+
+.picker {
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--paper);
+  outline: none;
+}
+
+.toggle, .action {
+  padding: 7px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--paper);
+  color: var(--ink-soft);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.toggle:hover, .action:hover { border-color: var(--ink-faint); color: var(--ink); }
+
+.toggle.on {
+  background: var(--accent-wash);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.action:disabled { color: var(--ink-faint); cursor: default; border-color: var(--line-soft); }
+
+.action.quiet { border-color: transparent; padding-left: 8px; padding-right: 8px; }
+
+.chip {
+  padding: 7px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--paper);
+  color: var(--ink);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.chip:hover { border-color: var(--ink-faint); }
+
+.chip.off {
+  color: var(--ink-faint);
+  text-decoration: line-through;
+  border-style: dashed;
+}
+
+/* table */
+
+.tablewrap {
+  overflow-x: auto;
+  background: var(--paper);
+  border-radius: 12px;
+  border: 1px solid var(--line);
+}
+
+table.report {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  white-space: nowrap;
+}
+
+th, td {
+  padding: 10px 16px;
+  text-align: left;
+  vertical-align: middle;
+  background: var(--paper);
+}
+
+thead th, thead td { position: relative; }
+
+.headrow th {
+  border-bottom: 1px solid var(--line);
+  padding: 0;
+}
+
+.headbutton {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  width: 100%;
+  padding: 14px 16px;
+  border: 0;
+  background: none;
+  color: var(--ink-soft);
+  cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.headbutton:hover { color: var(--ink); }
+
+.head.num .headbutton { justify-content: flex-end; }
+
+.head.sorted .headbutton { color: var(--accent); }
+
+.arrow { font-size: 11px; }
+
+.badge {
+  font-size: 10px;
+  min-width: 15px;
+  height: 15px;
+  line-height: 15px;
+  text-align: center;
+  border-radius: 8px;
+  background: var(--accent-wash);
+  color: var(--accent);
+}
+
+.filterrow td {
+  padding: 10px 16px 14px;
+  border-bottom: 1px solid var(--line);
+}
+
+.filterfield {
+  width: 100%;
+  min-width: 92px;
+  padding: 5px 8px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--paper);
+  color: var(--ink);
+  outline: none;
+  font-size: 13px;
+}
+
+.filterfield:focus { border-color: var(--accent); }
+
+.filterfield.small { width: 78px; min-width: 78px; }
+.filterfield.date { width: 142px; min-width: 142px; }
+
+.range { display: flex; gap: 6px; }
+
+tbody td {
+  border-bottom: 1px solid var(--line-soft);
+  color: var(--ink);
+}
+
+tbody tr:last-child td { border-bottom: 0; }
+
+td.num { text-align: right; font-variant-numeric: tabular-nums; }
+
+td.path { color: var(--ink-faint); }
+
+tr.grouprow td { background: var(--ground); font-weight: 600; }
+
+tr.subrow td { color: var(--ink-soft); }
+
+tr.picked td { background: var(--accent-wash); }
+
+tr.row:hover td { background: var(--line-soft); }
+
+tr.picked:hover td { background: var(--accent-wash); }
+
+.cell-select {
+  width: 40px;
+  min-width: 40px;
+  padding-left: 16px;
+  padding-right: 8px;
+}
+
+.leading { display: flex; align-items: center; gap: 4px; }
+
+.expander {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 18px;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: none;
+  color: var(--ink-faint);
+  cursor: pointer;
+  line-height: 1;
+  transition: transform 0.12s ease;
+}
+
+.expander:hover { color: var(--accent); }
+
+.expander.open { transform: rotate(90deg); }
+
+.expander.empty { cursor: default; }
+
+.count {
+  margin-left: 8px;
+  color: var(--ink-faint);
+  font-weight: 400;
+}
+
+.up { color: var(--accent); }
+
+/* sticky columns */
+
+.stick {
+  position: sticky;
+  left: 0;
+  z-index: 3;
+}
+
+/* The pinned column tucks a few pixels under the sticky select column, so a
+   narrower select column can never open a gap the scrolled rows show through. */
+.pinned {
+  position: sticky;
+  left: 34px;
+  z-index: 2;
+  box-shadow: 1px 0 0 var(--line);
+}
+
+tr.grouprow .stick, tr.grouprow .pinned { background: var(--ground); }
+tr.picked .stick, tr.picked .pinned { background: var(--accent-wash); }
+
+input[type="checkbox"] {
+  width: 15px;
+  height: 15px;
+  accent-color: var(--accent);
+  cursor: pointer;
+  margin: 0;
+}
+
+/* pager and timings */
+
+.pager {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 16px 40px;
+  margin-top: 24px;
+}
+
+.pagenav { display: flex; align-items: center; gap: 12px; }
+
+.selection { display: flex; align-items: center; gap: 4px; }
+
+.readout { color: var(--ink-soft); font-variant-numeric: tabular-nums; }
+
+.timings {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 56px;
+  padding-top: 24px;
+  border-top: 1px solid var(--line);
+}
+
+.timinglist { display: flex; flex-wrap: wrap; gap: 8px 28px; }
+
+.stat { display: flex; gap: 6px; align-items: baseline; }
+
+.statname { color: var(--ink-faint); }
+
+.statvalue { font-variant-numeric: tabular-nums; }
+
+@media (max-width: 720px) {
+  .page { padding: 40px 20px 64px; }
+  .title { font-size: 26px; }
+  .search { width: 100%; }
+}
+</style>
+</head>
+<body>
+<div id="report"></div>
+<script src="elm.js"></script>
+<script>
+Elm.Main.init({
+  node: document.getElementById('report'),
+  flags: { now: Date.now() }
+});
+</script>
+</body>
+</html>
