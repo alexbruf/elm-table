@@ -3,45 +3,254 @@
     {
       "label": "Basic Examples",
       "examples": [
-        { "slug": "basic", "module": "Basic", "title": "Basic", "tanstack": "examples/react/basic-use-table", "description": "The smallest possible table: four rows, six columns, no state." },
-        { "slug": "basic-external-state", "module": "BasicExternalState", "title": "Basic (External State)", "tanstack": "examples/react/basic-external-state", "description": "The table state lives in your model and you can inspect, reset, and replace it." },
-        { "slug": "basic-dynamic-columns", "module": "BasicDynamicColumns", "title": "Basic (Dynamic Columns)", "tanstack": "examples/react/basic-dynamic-columns", "description": "Columns built at runtime from the data's own keys." },
-        { "slug": "header-groups", "module": "HeaderGroups", "title": "Header Groups", "tanstack": "examples/react/header-groups", "description": "Nested column groups rendered as multi-row headers and footers." }
+        {
+          "slug": "basic",
+          "module": "Basic",
+          "title": "Basic",
+          "tanstack": "examples/react/basic-use-table",
+          "description": "The smallest possible table: four rows, six columns, no state."
+        },
+        {
+          "slug": "basic-external-state",
+          "module": "BasicExternalState",
+          "title": "Basic (External State)",
+          "tanstack": "examples/react/basic-external-state",
+          "description": "The table state lives in your model and you can inspect, reset, and replace it."
+        },
+        {
+          "slug": "basic-dynamic-columns",
+          "module": "BasicDynamicColumns",
+          "title": "Basic (Dynamic Columns)",
+          "tanstack": "examples/react/basic-dynamic-columns",
+          "description": "Columns built at runtime from the data's own keys."
+        },
+        {
+          "slug": "header-groups",
+          "module": "HeaderGroups",
+          "title": "Header Groups",
+          "tanstack": "examples/react/header-groups",
+          "description": "Nested column groups rendered as multi-row headers and footers."
+        }
       ]
     },
     {
       "label": "Feature Examples",
       "examples": [
-        { "slug": "kitchen-sink", "module": "KitchenSink", "title": "Kitchen Sink (All Features)", "tanstack": "examples/react/kitchen-sink", "description": "Every feature on one table: sorting, filtering, grouping, expanding, selection, pinning, visibility, ordering, sizing, pagination." },
-        { "slug": "cell-selection", "module": "CellSelection", "title": "Cell Selection", "tanstack": "examples/react/cell-selection", "description": "Rectangular cell ranges with click, shift-click, ctrl-click, and keyboard movement." },
-        { "slug": "cell-spanning", "module": "CellSpanning", "title": "Cell Spanning", "tanstack": "examples/react/cell-spanning", "description": "Merge adjacent cells with row and column spans." },
-        { "slug": "filters", "module": "Filters", "title": "Column Filters", "tanstack": "examples/react/filters", "description": "Per-column text and range filters plus a global filter." },
-        { "slug": "filters-faceted", "module": "FiltersFaceted", "title": "Column Filters (Faceted)", "tanstack": "examples/react/filters-faceted", "description": "Filter inputs driven by faceted unique values and min/max." },
-        { "slug": "filters-faceted-bucketed", "module": "FiltersFacetedBucketed", "title": "Bucketed Faceted Filters", "tanstack": "examples/react/filters-faceted-bucketed", "description": "Faceted values grouped into buckets for numeric and date columns." },
-        { "slug": "filters-fuzzy", "module": "FiltersFuzzy", "title": "Fuzzy Search Filters", "tanstack": "examples/react/filters-fuzzy", "description": "A custom fuzzy filter function with match ranking." },
-        { "slug": "column-ordering", "module": "ColumnOrdering", "title": "Column Ordering", "tanstack": "examples/react/column-ordering", "description": "Reorder columns through state." },
-        { "slug": "column-dnd", "module": "ColumnDnd", "title": "Column Ordering (DnD)", "tanstack": "examples/react/column-dnd", "description": "Drag headers to reorder columns using HTML5 drag events." },
-        { "slug": "column-pinning", "module": "ColumnPinning", "title": "Column Pinning", "tanstack": "examples/react/column-pinning", "description": "Pin columns to the left or right edge." },
-        { "slug": "column-pinning-split", "module": "ColumnPinningSplit", "title": "Column Pinning (Split)", "tanstack": "examples/react/column-pinning-split", "description": "Pinned regions rendered as three separate tables." },
-        { "slug": "column-pinning-sticky", "module": "ColumnPinningSticky", "title": "Sticky Column Pinning", "tanstack": "examples/react/column-pinning-sticky", "description": "Pinned columns stay put with position: sticky while the rest scroll." },
-        { "slug": "column-sizing", "module": "ColumnSizing", "title": "Column Sizing", "tanstack": "examples/react/column-sizing", "description": "Column widths from state with min and max clamping." },
-        { "slug": "column-visibility", "module": "ColumnVisibility", "title": "Column Visibility", "tanstack": "examples/react/column-visibility", "description": "Show and hide columns with checkboxes." },
-        { "slug": "expanding", "module": "Expanding", "title": "Expanding", "tanstack": "examples/react/expanding", "description": "Nested sub-rows with expand and collapse." },
-        { "slug": "sub-components", "module": "SubComponents", "title": "Expanding Sub Components", "tanstack": "examples/react/sub-components", "description": "Expand a row to reveal arbitrary content instead of sub-rows." },
-        { "slug": "grouping", "module": "Grouping", "title": "Grouping", "tanstack": "examples/react/grouping", "description": "Group rows by one or more columns." },
-        { "slug": "aggregation", "module": "Aggregation", "title": "Aggregation", "tanstack": "examples/react/aggregation", "description": "Aggregated values on group rows and in footers." },
-        { "slug": "grouped-aggregation", "module": "GroupedAggregation", "title": "Grouped Aggregation", "tanstack": "examples/react/grouped-aggregation", "description": "Nested groups with merged aggregates at every level." },
-        { "slug": "pagination", "module": "Pagination", "title": "Pagination", "tanstack": "examples/react/pagination", "description": "Client-side pages with page size, page jump, and counts." },
-        { "slug": "row-dnd", "module": "RowDnd", "title": "Row DnD", "tanstack": "examples/react/row-dnd", "description": "Drag rows to reorder the underlying data using HTML5 drag events." },
-        { "slug": "row-pinning", "module": "RowPinning", "title": "Row Pinning", "tanstack": "examples/react/row-pinning", "description": "Pin rows to the top or bottom of the table." },
-        { "slug": "row-selection", "module": "RowSelection", "title": "Row Selection", "tanstack": "examples/react/row-selection", "description": "Checkbox selection with all, some, and per-row state." },
-        { "slug": "sorting", "module": "Sorting", "title": "Sorting", "tanstack": "examples/react/sorting", "description": "Click and shift-click headers for single and multi-column sorting." }
+        {
+          "slug": "kitchen-sink",
+          "module": "KitchenSink",
+          "title": "Kitchen Sink (All Features)",
+          "tanstack": "examples/react/kitchen-sink",
+          "description": "Every feature on one table: sorting, filtering, grouping, expanding, selection, pinning, visibility, ordering, sizing, pagination."
+        },
+        {
+          "slug": "cell-selection",
+          "module": "CellSelection",
+          "title": "Cell Selection",
+          "tanstack": "examples/react/cell-selection",
+          "description": "Rectangular cell ranges with click, shift-click, ctrl-click, and keyboard movement."
+        },
+        {
+          "slug": "cell-spanning",
+          "module": "CellSpanning",
+          "title": "Cell Spanning",
+          "tanstack": "examples/react/cell-spanning",
+          "description": "Merge adjacent cells with row and column spans."
+        },
+        {
+          "slug": "filters",
+          "module": "Filters",
+          "title": "Column Filters",
+          "tanstack": "examples/react/filters",
+          "description": "Per-column text and range filters plus a global filter."
+        },
+        {
+          "slug": "filters-faceted",
+          "module": "FiltersFaceted",
+          "title": "Column Filters (Faceted)",
+          "tanstack": "examples/react/filters-faceted",
+          "description": "Filter inputs driven by faceted unique values and min/max."
+        },
+        {
+          "slug": "filters-faceted-bucketed",
+          "module": "FiltersFacetedBucketed",
+          "title": "Bucketed Faceted Filters",
+          "tanstack": "examples/react/filters-faceted-bucketed",
+          "description": "Faceted values grouped into buckets for numeric and date columns."
+        },
+        {
+          "slug": "filters-fuzzy",
+          "module": "FiltersFuzzy",
+          "title": "Fuzzy Search Filters",
+          "tanstack": "examples/react/filters-fuzzy",
+          "description": "A custom fuzzy filter function with match ranking."
+        },
+        {
+          "slug": "column-ordering",
+          "module": "ColumnOrdering",
+          "title": "Column Ordering",
+          "tanstack": "examples/react/column-ordering",
+          "description": "Reorder columns through state."
+        },
+        {
+          "slug": "column-dnd",
+          "module": "ColumnDnd",
+          "title": "Column Ordering (DnD)",
+          "tanstack": "examples/react/column-dnd",
+          "description": "Drag headers to reorder columns using HTML5 drag events."
+        },
+        {
+          "slug": "column-pinning",
+          "module": "ColumnPinning",
+          "title": "Column Pinning",
+          "tanstack": "examples/react/column-pinning",
+          "description": "Pin columns to the left or right edge."
+        },
+        {
+          "slug": "column-pinning-split",
+          "module": "ColumnPinningSplit",
+          "title": "Column Pinning (Split)",
+          "tanstack": "examples/react/column-pinning-split",
+          "description": "Pinned regions rendered as three separate tables."
+        },
+        {
+          "slug": "column-pinning-sticky",
+          "module": "ColumnPinningSticky",
+          "title": "Sticky Column Pinning",
+          "tanstack": "examples/react/column-pinning-sticky",
+          "description": "Pinned columns stay put with position: sticky while the rest scroll."
+        },
+        {
+          "slug": "column-sizing",
+          "module": "ColumnSizing",
+          "title": "Column Sizing",
+          "tanstack": "examples/react/column-sizing",
+          "description": "Column widths from state with min and max clamping."
+        },
+        {
+          "slug": "column-resizing",
+          "module": "ColumnResizing",
+          "title": "Column Resizing",
+          "tanstack": "examples/react/column-resizing",
+          "description": "Drag a header edge to resize a column, with onChange and onEnd modes and left-to-right or right-to-left direction."
+        },
+        {
+          "slug": "column-resizing-performant",
+          "module": "ColumnResizingPerformant",
+          "title": "Performant Column Resizing",
+          "tanstack": "examples/react/column-resizing-performant",
+          "description": "Resize with the body rendered from CSS variables so only the header re-renders while dragging."
+        },
+        {
+          "slug": "column-visibility",
+          "module": "ColumnVisibility",
+          "title": "Column Visibility",
+          "tanstack": "examples/react/column-visibility",
+          "description": "Show and hide columns with checkboxes."
+        },
+        {
+          "slug": "expanding",
+          "module": "Expanding",
+          "title": "Expanding",
+          "tanstack": "examples/react/expanding",
+          "description": "Nested sub-rows with expand and collapse."
+        },
+        {
+          "slug": "sub-components",
+          "module": "SubComponents",
+          "title": "Expanding Sub Components",
+          "tanstack": "examples/react/sub-components",
+          "description": "Expand a row to reveal arbitrary content instead of sub-rows."
+        },
+        {
+          "slug": "grouping",
+          "module": "Grouping",
+          "title": "Grouping",
+          "tanstack": "examples/react/grouping",
+          "description": "Group rows by one or more columns."
+        },
+        {
+          "slug": "aggregation",
+          "module": "Aggregation",
+          "title": "Aggregation",
+          "tanstack": "examples/react/aggregation",
+          "description": "Aggregated values on group rows and in footers."
+        },
+        {
+          "slug": "grouped-aggregation",
+          "module": "GroupedAggregation",
+          "title": "Grouped Aggregation",
+          "tanstack": "examples/react/grouped-aggregation",
+          "description": "Nested groups with merged aggregates at every level."
+        },
+        {
+          "slug": "pagination",
+          "module": "Pagination",
+          "title": "Pagination",
+          "tanstack": "examples/react/pagination",
+          "description": "Client-side pages with page size, page jump, and counts."
+        },
+        {
+          "slug": "row-dnd",
+          "module": "RowDnd",
+          "title": "Row DnD",
+          "tanstack": "examples/react/row-dnd",
+          "description": "Drag rows to reorder the underlying data using HTML5 drag events."
+        },
+        {
+          "slug": "row-pinning",
+          "module": "RowPinning",
+          "title": "Row Pinning",
+          "tanstack": "examples/react/row-pinning",
+          "description": "Pin rows to the top or bottom of the table."
+        },
+        {
+          "slug": "row-selection",
+          "module": "RowSelection",
+          "title": "Row Selection",
+          "tanstack": "examples/react/row-selection",
+          "description": "Checkbox selection with all, some, and per-row state."
+        },
+        {
+          "slug": "sorting",
+          "module": "Sorting",
+          "title": "Sorting",
+          "tanstack": "examples/react/sorting",
+          "description": "Click and shift-click headers for single and multi-column sorting."
+        }
       ]
     },
     {
       "label": "Specialized Examples",
       "examples": [
-        { "slug": "realtime-trading", "module": "RealtimeTrading", "title": "Realtime Trading", "tanstack": "examples/react/realtime-trading", "description": "Prices updating on a timer while sorting and filtering stay live." }
+        {
+          "slug": "virtualized-rows",
+          "module": "VirtualizedRows",
+          "title": "Virtualized Rows",
+          "tanstack": "examples/react/virtualized-rows",
+          "description": "50,000 sorted and filtered rows rendered through an Elm virtual list."
+        },
+        {
+          "slug": "virtualized-columns",
+          "module": "VirtualizedColumns",
+          "title": "Virtualized Columns",
+          "tanstack": "examples/react/virtualized-columns",
+          "description": "Wide tables: only the columns in view are rendered."
+        },
+        {
+          "slug": "virtualized-infinite-scrolling",
+          "module": "VirtualizedInfiniteScrolling",
+          "title": "Infinite Scrolling",
+          "tanstack": "examples/react/virtualized-infinite-scrolling",
+          "description": "Pages of rows fetched as you scroll, appended to the data and re-run through the pipeline."
+        },
+        {
+          "slug": "realtime-trading",
+          "module": "RealtimeTrading",
+          "title": "Realtime Trading",
+          "tanstack": "examples/react/realtime-trading",
+          "description": "Prices updating on a timer while sorting and filtering stay live."
+        }
       ]
     }
   ]
