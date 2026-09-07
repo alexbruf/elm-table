@@ -123,6 +123,25 @@ Running log for the Elm port of TanStack Table core. See `SPEC.md` for the plan.
   (`cellSpanIndex cfg state model`) because there is no memoisation.
   Selection reads take `SelectionRows { prePaginated, current }`.
 
+### Phase 7: Package hygiene
+
+- Merged. README rewritten with the full sort + filter + group + paginate
+  example, byte-identical to `examples/src/Main.elm` (`make example`,
+  runs in `elm reactor`). `Table.elm` module docs regrouped under feature
+  headings. `Simplify.expectNaN` configured so NaN is written `0 / 0`.
+  Re-homed the two default-header / default-cell phase 2 cases as data
+  assertions; `renderValue` cases stay excluded (no `renderFallbackValue`).
+- Checks: `elm make --docs`, `elm-format --validate src tests examples`,
+  `elm-review`, `elm-test` all green; no `Debug` in `src/`; `elm bump` not
+  applicable at 1.0.0.
+- Open API questions before 1.0.0 (from `reports/phase-7.md`): `rows` takes
+  `Array` while the list-first helpers are what examples reach for; three
+  transitions (`toggleSort`, `setColumnFilter`, `toggleExpanded`) take a
+  `RowModel` and the module doc should say which stage each wants;
+  `columnHeader` is `Maybe String` so every view repeats the
+  `withDefault columnId` line; a `rowHasAggregatedValue` helper would
+  mirror `cellIsGrouped`.
+
 ## Performance (merged tree, `make bench`, node 24, `--optimize`, 7 runs)
 
 | case | shape | min | median | target |
@@ -145,7 +164,7 @@ file. Full per-case exclusion lists live in `reports/phase-N.md`.
 | `implementation/core/row-models/createCoreRowModel.test.ts` | 18 | 14 | 14 | 4 |
 | `implementation/core/row-models/rowModelFlatRowsOrder.test.ts` | 1 | 1 | 1 | 0 |
 | `unit/core/columns/constructColumn.test.ts` | 2 | 1 | 1 | 1 |
-| `unit/core/columns/coreColumnsFeature.utils.test.ts` | 13 | 11 | 11 | 2 |
+| `unit/core/columns/coreColumnsFeature.utils.test.ts` | 13 | 13 | 13 | 0 |
 | `unit/core/headers/constructHeader.test.ts` | 3 | 1 | 1 | 2 |
 | `unit/core/headers/coreHeadersFeature.utils.test.ts` | 13 | 12 | 12 | 1 |
 | `unit/core/rows/constructRow.test.ts` | 2 | 1 | 1 | 1 |
