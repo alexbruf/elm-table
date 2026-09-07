@@ -175,6 +175,61 @@ suite =
                                 (Table.findRow found "0.0.0" |> Maybe.map Table.rowId)
                         ]
                         result
+            , -- adapted: Elm has no prototypes; the observable half is that
+              -- the cloned parent still reads the same values as the original.
+              test "should preserve row prototype methods on cloned parent rows" <|
+                \_ ->
+                    let
+                        source : Table.RowModel Person
+                        source =
+                            model [ 3, 2 ]
+
+                        result : Table.RowModel Person
+                        result =
+                            Table.selectedRowModel (selecting [ "0", "0.0" ]) source
+
+                        firstNameOf : Table.RowModel Person -> Maybe Value.Value
+                        firstNameOf found =
+                            List.head found.rows
+                                |> Maybe.map (\row -> Table.getValue cfg row "firstName")
+                    in
+                    Expect.equal
+                        ( firstNameOf result == firstNameOf source
+                        , List.head result.rows /= List.head source.rows
+                        )
+                        ( True, True )
+            , -- adapted: nothing is memoized on a row here, so the
+              -- assertion is the observable half: the cloned parent carries
+              -- its own sub-rows and its cells point back at it.
+              test "should not copy memoized row APIs from the original row to cloned parent rows" <|
+                \_ ->
+                    let
+                        source : Table.RowModel Person
+                        source =
+                            model [ 3, 2 ]
+
+                        result : Table.RowModel Person
+                        result =
+                            Table.selectedRowModel (selecting [ "0", "0.0" ]) source
+                    in
+                    Expect.all
+                        [ \_ ->
+                            Expect.equal (Just [ "0.0" ])
+                                (List.head result.rows |> Maybe.map (Table.rowSubRows >> rowIds))
+                        , \_ ->
+                            Expect.equal (Just [ "0.0", "0.1" ])
+                                (List.head source.rows |> Maybe.map (Table.rowSubRows >> rowIds))
+                        , \_ ->
+                            Expect.equal (Just True)
+                                (List.head result.rows
+                                    |> Maybe.map
+                                        (\row ->
+                                            Table.getAllCells cfg state row
+                                                |> List.all (\cell -> cell.rowId == Table.rowId row)
+                                        )
+                                )
+                        ]
+                        ()
             , test "should return an empty list if no rows are selected" <|
                 \_ ->
                     let
@@ -402,6 +457,40 @@ suite =
                                 )
                         ]
                         ()
+            , -- adapted: nothing is memoized, so the call counts become
+              -- "repeated reads agree" and "a changed selection recomputes".
+              test "memoizes getIsAllRowsSelected until selection or row model changes" <|
+                \_ ->
+                    let
+                        nineOfTen : Table.State
+                        nineOfTen =
+                            selecting (List.map String.fromInt (List.range 0 8))
+
+                        allTen : Table.State
+                        allTen =
+                            selecting (List.map String.fromInt (List.range 0 9))
+
+                        isAll : Table.State -> Bool
+                        isAll current =
+                            Table.getIsAllRowsSelected cfg current (model [ 10 ])
+                    in
+                    Expect.equal
+                        { first = isAll nineOfTen
+                        , second = isAll nineOfTen
+                        , afterChange = isAll allTen
+                        }
+                        { first = False, second = False, afterChange = True }
+
+            -- adapted: the `vi.fn` predicate becomes a predicate that would
+            -- answer `False`; the scan still reports all-selected, which is
+            -- only possible when it never asks about a selected row.
+            , test "skips the enableRowSelection predicate for already-selected rows" <|
+                \_ ->
+                    Table.getIsAllRowsSelected
+                        { cfg | enableRowSelection = always False }
+                        (selecting (List.map String.fromInt (List.range 0 9)))
+                        (model [ 10 ])
+                        |> Expect.equal True
             , test "memoizes getIsSomePageRowsSelected until selection changes" <|
                 \_ ->
                     Expect.all
@@ -479,6 +568,27 @@ pendingIntegration =
                     , \found -> Expect.equal [ "status:single" ] (rowIds found.flatRows)
                     ]
                     groupedSelected
+        , -- adapted: there is no feature registry, so "without sorting
+          -- registered" is the ordinary path with the sorting stage left out
+          -- (the phase 6 convention for every "without X registered" case).
+          test "getGroupedSelectedRowModel falls back through the row-model chain when sorting is not registered" <|
+            \_ ->
+                let
+                    current : Table.State
+                    current =
+                        { state
+                            | grouping = [ "status" ]
+                            , rowSelection = Set.singleton "status:single"
+                        }
+
+                    groupedSelected : Table.RowModel Person
+                    groupedSelected =
+                        Table.groupedRowModel statusConfig current (core current)
+                            |> Table.selectedRowModel current
+                in
+                Expect.equal
+                    ( List.length groupedSelected.rows, rowIds groupedSelected.rows )
+                    ( 1, [ "status:single" ] )
         , test "getGroupedSelectedRowModel collects a selected leaf under an unselected group" <|
             \_ ->
                 let

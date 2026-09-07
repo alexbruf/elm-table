@@ -476,10 +476,17 @@ suite =
                 \_ ->
                     handle { config | enableSorting = False } { desc = Nothing, multi = False } "firstName" []
                         |> Expect.equal []
-
-            -- excluded: "should consult isMultiSortEvent to decide on multi
-            --   sorting". `isMultiSortEvent` inspects a DOM event; `multi` is a
-            --   plain argument of `Table.toggleSort` here.
+            , -- adapted: `isMultiSortEvent` inspects a DOM event; `multi` is
+              -- a plain argument of `Table.toggleSort` here, so the shift
+              -- event becomes `multi = True`.
+              test "should consult isMultiSortEvent to decide on multi sorting" <|
+                \_ ->
+                    handle config
+                        { desc = Nothing, multi = True }
+                        "firstName"
+                        [ { id = "age", desc = True } ]
+                        |> Expect.equal
+                            [ { id = "age", desc = True }, { id = "firstName", desc = False } ]
             ]
         ]
 

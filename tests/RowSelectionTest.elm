@@ -89,6 +89,15 @@ suite =
                     Table.setRowSelection (Set.singleton "0") state
                         |> selected
                         |> Expect.equal [ "0" ]
+
+            -- adapted: there is no `onRowSelectionChange` spy, so the write
+            -- that skips the no-op guard is asserted as the slice it returns
+            -- when it rewrites the selection it already holds.
+            , test "should fire even for structural no-ops (row selection skips the no-op guard)" <|
+                \_ ->
+                    Table.setRowSelection (Set.singleton "0") (selecting [ "0" ])
+                        |> selected
+                        |> Expect.equal [ "0" ]
             ]
         , describe "table_resetRowSelection"
             [ test "should reset to an empty map when defaultState is true" <|
@@ -101,6 +110,23 @@ suite =
                     Table.setRowSelection (Set.fromList [ "0", "2" ]) (selecting [ "1" ])
                         |> selected
                         |> Expect.equal [ "0", "2" ]
+            ]
+        , -- adapted: there is no table instance holding a pre-selected row
+          -- model; the selected row model takes the row model as an argument,
+          -- so "the core row model" is what the caller passes in.
+          describe "table_getPreSelectedRowModel"
+            [ test "should return the core row model" <|
+                \_ ->
+                    let
+                        core : Table.RowModel Person
+                        core =
+                            model [ 5 ]
+                    in
+                    Expect.equal
+                        ( List.map Table.rowId (Table.selectedRowModel (selecting [ "0" ]) core).rows
+                        , List.map Table.rowId (List.take 1 core.rows)
+                        )
+                        ( [ "0" ], [ "0" ] )
             ]
         , describe "table_getSelectedRowIds"
             [ test "should list the selected row ids" <|
@@ -455,6 +481,43 @@ suite =
                                 ()
                         )
             ]
+        , -- adapted: a handler is the checkbox state plus the transition it
+          -- performs, and only the transition has a counterpart here; the
+          -- `event.target.checked` half is dropped.
+          describe "selection handlers"
+            [ test "row_getToggleSelectedHandler should read event.target.checked" <|
+                \_ ->
+                    withRow (model [ 5 ])
+                        "0"
+                        (\row ->
+                            Table.toggleRowSelected cfg (model [ 5 ]) row (Just True) state
+                                |> selected
+                                |> Expect.equal [ "0" ]
+                        )
+            , test "row_getToggleSelectedHandler should be a no-op when the row cannot be selected" <|
+                \_ ->
+                    withRow (model [ 5 ])
+                        "0"
+                        (\row ->
+                            Table.toggleRowSelected { cfg | enableRowSelection = always False }
+                                (model [ 5 ])
+                                row
+                                (Just True)
+                                state
+                                |> selected
+                                |> Expect.equal []
+                        )
+            , test "table_getToggleAllRowsSelectedHandler should select all rows from the checkbox state" <|
+                \_ ->
+                    Table.toggleAllRowsSelected cfg (model [ 5 ]) (Just True) state
+                        |> selected
+                        |> Expect.equal [ "0", "1", "2", "3", "4" ]
+            , test "table_getToggleAllPageRowsSelectedHandler should select page rows from the checkbox state" <|
+                \_ ->
+                    Table.toggleAllPageRowsSelected cfg (page 2 (model [ 5 ])) (Just True) state
+                        |> selected
+                        |> Expect.equal [ "0", "1" ]
+            ]
         , describe "row_getIsSelected"
             [ test "should read the selection state for this row id" <|
                 \_ ->
@@ -498,6 +561,17 @@ suite =
                         state
                         |> selected
                         |> Expect.equal [ "0", "1", "2" ]
+            , -- adapted: the call-count half needs a spy; the row count the
+              -- per-pass subtree cache guards is asserted instead.
+              test "should evaluate the enableSubRowSelection predicate once per unique parent" <|
+                \_ ->
+                    Table.toggleAllRowsSelected { cfg | enableSubRowSelection = always True }
+                        (model [ 2, 2, 2 ])
+                        (Just True)
+                        state
+                        |> selected
+                        |> List.length
+                        |> Expect.equal 14
             , test "should skip subtrees blocked by an enableSubRowSelection predicate" <|
                 \_ ->
                     Table.toggleAllRowsSelected { cfg | enableSubRowSelection = rowIdIsNot "0" }

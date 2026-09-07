@@ -132,52 +132,62 @@ file. Full per-case exclusion lists live in `reports/phase-N.md`.
 | --- | --- | --- | --- | --- |
 | `unit/fns/sortFns.test.ts` | 41 | 41 | 41 | 0 |
 | `unit/fns/filterFns.test.ts` | 135 | 133 | 133 | 2 |
-| `unit/fns/aggregationFns.test.ts` | 8 | 7 | 7 | 1 |
-| `implementation/core/row-models/createCoreRowModel.test.ts` | 18 | 14 | 14 | 4 |
+| `unit/fns/aggregationFns.test.ts` | 8 | 8 | 8 | 0 |
+| `implementation/core/row-models/createCoreRowModel.test.ts` | 18 | 18 | 18 | 0 |
 | `implementation/core/row-models/rowModelFlatRowsOrder.test.ts` | 1 | 1 | 1 | 0 |
 | `unit/core/columns/constructColumn.test.ts` | 2 | 1 | 1 | 1 |
 | `unit/core/columns/coreColumnsFeature.utils.test.ts` | 13 | 11 | 11 | 2 |
 | `unit/core/headers/constructHeader.test.ts` | 3 | 1 | 1 | 2 |
-| `unit/core/headers/coreHeadersFeature.utils.test.ts` | 13 | 12 | 12 | 1 |
-| `unit/core/rows/constructRow.test.ts` | 2 | 1 | 1 | 1 |
-| `unit/core/rows/coreRowsFeature.utils.test.ts` | 21 | 18 | 18 | 3 |
-| `unit/core/row-models/coreRowModelsFeature.utils.test.ts` | 17 | 10 | 10 | 7 |
+| `unit/core/headers/coreHeadersFeature.utils.test.ts` | 13 | 13 | 13 | 0 |
+| `unit/core/rows/constructRow.test.ts` | 2 | 2 | 2 | 0 |
+| `unit/core/rows/coreRowsFeature.utils.test.ts` | 21 | 19 | 19 | 2 |
+| `unit/core/row-models/coreRowModelsFeature.utils.test.ts` | 17 | 17 | 17 | 0 |
 | `unit/core/cells/constructCell.test.ts` | 2 | 1 | 1 | 1 |
-| `unit/core/cells/coreCellsFeature.utils.test.ts` | 4 | 1 | 1 | 3 |
+| `unit/core/cells/coreCellsFeature.utils.test.ts` | 4 | 2 | 2 | 2 |
 | `unit/core/table/constructTable.test.ts` | 7 | 0 | 0 | 7 |
 | `unit/core/table/rowModelSlots.test.ts` | 11 | 0 | 0 | 11 |
 | `unit/core/table/stockFeaturesInitialState.test.ts` | 1 | 1 | 1 | 0 |
 | `implementation/features/column-filtering/createFilteredRowModel.test.ts` | 38 | 32 | 32 | 6 |
 | `unit/features/column-filtering/columnFilteringFeature.utils.test.ts` | 28 | 26 | 26 | 2 |
-| `implementation/features/column-faceting/createFacetedRowModels.test.ts` | 22 | 19 | 19 | 3 |
-| `unit/features/column-faceting/columnFacetingFeature.test.ts` | 4 | 3 | 3 | 1 |
-| `unit/features/global-filtering/globalFilteringFeature.utils.test.ts` | 20 | 18 | 18 | 2 |
+| `implementation/features/column-faceting/createFacetedRowModels.test.ts` | 22 | 21 | 21 | 1 |
+| `unit/features/column-faceting/columnFacetingFeature.test.ts` | 4 | 4 | 4 | 0 |
+| `unit/features/global-filtering/globalFilteringFeature.utils.test.ts` | 20 | 19 | 19 | 1 |
 | `implementation/features/row-sorting/createSortedRowModel.test.ts` | 25 | 25 | 25 | 0 |
-| `unit/features/row-sorting/rowSortingFeature.utils.test.ts` | 52 | 49 | 49 | 3 |
+| `unit/features/row-sorting/rowSortingFeature.utils.test.ts` | 52 | 50 | 50 | 2 |
 | `implementation/features/row-pagination/createPaginatedRowModel.test.ts` | 16 | 16 | 16 | 0 |
-| `unit/features/row-pagination/rowPaginationFeature.utils.test.ts` | 51 | 44 | 44 | 7 |
-| `unit/features/column-visibility/columnVisibilityFeature.utils.test.ts` | 27 | 25 | 25 | 2 |
+| `unit/features/row-pagination/rowPaginationFeature.utils.test.ts` | 51 | 49 | 49 | 2 |
+| `unit/features/column-visibility/columnVisibilityFeature.utils.test.ts` | 27 | 27 | 27 | 0 |
 | `unit/features/column-ordering/columnOrderingFeature.utils.test.ts` | 22 | 22 | 22 | 0 |
 | `unit/features/column-pinning/columnPinningFeature.utils.test.ts` | 56 | 56 | 56 | 0 |
 | `unit/features/column-sizing/columnSizingFeature.utils.test.ts` | 38 | 38 | 38 | 0 |
-| `implementation/features/row-selection/rowSelectionFeature.test.ts` | 34 | 29 | 29 | 5 |
-| `implementation/features/row-selection/rowSelectionRange.test.ts` | 23 | 17 | 17 | 6 |
-| `unit/features/row-selection/rowSelectionFeature.utils.test.ts` | 58 | 51 | 51 | 7 |
+| `implementation/features/row-selection/rowSelectionFeature.test.ts` | 34 | 34 | 34 | 0 |
+| `implementation/features/row-selection/rowSelectionRange.test.ts` | 23 | 22 | 22 | 1 |
+| `unit/features/row-selection/rowSelectionFeature.utils.test.ts` | 58 | 58 | 58 | 0 |
 | `unit/features/row-pinning/rowPinningFeature.utils.test.ts` | 37 | 37 | 37 | 0 |
 | `implementation/features/row-pinning/rowPinningFeature.test.ts` | 20 | 20 | 20 | 0 |
 | `implementation/features/column-grouping/createGroupedRowModel.test.ts` | 15 | 15 | 15 | 0 |
 | `implementation/features/column-grouping/columnGroupingFeature.test.ts` | 1 | 1 | 1 | 0 |
 | `unit/features/column-grouping/columnGroupingFeature.utils.test.ts` | 24 | 24 | 24 | 0 |
-| `implementation/features/row-aggregation/rowAggregationFeature.test.ts` | 18 | 11 | 11 | 7 |
-| `implementation/features/row-expanding/createExpandedRowModel.test.ts` | 13 | 11 | 11 | 2 |
+| `implementation/features/row-aggregation/rowAggregationFeature.test.ts` | 18 | 13 | 13 | 5 |
+| `implementation/features/row-expanding/createExpandedRowModel.test.ts` | 13 | 13 | 13 | 0 |
 | `implementation/features/row-expanding/rowExpandingFeature.test.ts` | 2 | 2 | 2 | 0 |
-| `unit/features/row-expanding/rowExpandingFeature.utils.test.ts` | 51 | 49 | 49 | 2 |
+| `unit/features/row-expanding/rowExpandingFeature.utils.test.ts` | 51 | 50 | 50 | 1 |
 | `unit/features/cell-spanning/cellSpanningFeature.utils.test.ts` | 13 | 13 | 13 | 0 |
-| `implementation/features/cell-spanning/cellSpanningFeature.test.ts` | 14 | 13 | 13 | 1 |
-| `implementation/features/cell-selection/cellSelectionFeature.test.ts` | 66 | 54 | 54 | 12 |
+| `implementation/features/cell-spanning/cellSpanningFeature.test.ts` | 14 | 14 | 14 | 0 |
+| `implementation/features/cell-selection/cellSelectionFeature.test.ts` | 66 | 62 | 62 | 4 |
 | `implementation/features/cell-selection/cellSelectionGeometry.test.ts` | 11 | 11 | 11 | 0 |
-| `implementation/features/cell-selection/cellSelectionRange.test.ts` | 23 | 22 | 22 | 1 |
+| `implementation/features/cell-selection/cellSelectionRange.test.ts` | 23 | 23 | 23 | 0 |
 | `implementation/features/cell-selection/cellSelectionSpanAware.test.ts` | 16 | 16 | 16 | 0 |
+
+### Re-homing pass
+
+Every excluded case whose vitest body still held a data-level assertion Elm can
+express was ported as an adapted test (the `it` name verbatim plus a one-line
+`-- adapted:` comment). 60 cases moved from excluded to ported, taking the
+totals to 1,082 ported and 55 excluded of 1,137 (4.8%), which meets `SPEC.md`
+"Definition of done" item 3. The per-case list, the adaptations, the remaining
+exclusions grouped by reason and the "needs API" list are in
+`reports/rehoming.md`.
 
 ## Semantic differences
 

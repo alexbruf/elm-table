@@ -150,6 +150,15 @@ suite =
                     Table.toggleColumnVisibility config (columnNamed config "firstName") Nothing state
                         |> Expect.equal state
             ]
+        , -- adapted: a handler is the checkbox state plus the transition it
+          -- performs, and only the transition has a counterpart here.
+          describe "column_getToggleVisibilityHandler"
+            [ test "should return handler that toggles visibility based on checkbox state" <|
+                \_ ->
+                    Table.toggleColumnVisibility cfg (columnNamed cfg "firstName") (Just True) state
+                        |> .columnVisibility
+                        |> Expect.equal (Dict.fromList [ ( "firstName", True ) ])
+            ]
         , describe "row_getVisibleCells"
             [ test "should return only visible cells" <|
                 \_ ->
@@ -235,6 +244,16 @@ suite =
                     Table.toggleAllColumnsVisible cfg (Just False) state
                         |> .columnVisibility
                         |> Expect.equal (Dict.fromList (List.map (\columnId -> ( columnId, False )) (leafIds cfg)))
+            ]
+        , -- adapted: the handler is `toggleAllColumnsVisible` with the
+          -- checkbox value; the event shape is dropped.
+          describe "table_getToggleAllColumnsVisibilityHandler"
+            [ test "should return handler that toggles all columns visibility based on checkbox state" <|
+                \_ ->
+                    Table.toggleAllColumnsVisible cfg (Just True) state
+                        |> .columnVisibility
+                        |> Expect.equal
+                            (Dict.fromList (List.map (\columnId -> ( columnId, True )) (leafIds cfg)))
             ]
         , describe "table_getIsAllColumnsVisible"
             [ test "should return true when all columns are visible" <|

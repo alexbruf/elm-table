@@ -183,10 +183,14 @@ suite =
                     Table.resetGlobalFilter (withGlobal (Value.String "initial"))
                         |> .globalFilter
                         |> Expect.equal Value.Null
-
-            -- excluded: "should reset to the initial global filter by default"
-            --   There is no `initialState` in this port; a caller that wants to
-            --   restore a starting filter writes it back with `setGlobalFilter`.
+            , -- adapted: there is no `table.initialState`, so restoring a
+              -- remembered initial filter is `setGlobalFilter` (the phase 3
+              -- convention for every "reset to the initial X" case).
+              test "should reset to the initial global filter by default" <|
+                \_ ->
+                    Table.setGlobalFilter (Value.String "initial") (withGlobal (Value.String "other"))
+                        |> .globalFilter
+                        |> Expect.equal (Value.String "initial")
             ]
         , describe "global filtering through the filtered row model"
             [ test "should filter rows across globally filterable columns" <|

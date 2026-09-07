@@ -293,12 +293,66 @@ facetedRowModelsSuite =
         --     undefined". Faceting is not a registered factory here; the three
         --     functions are always available.
         --
-        -- excluded: describe "custom faceted row-model factories"
-        --   * "should call a custom facetedUniqueValues factory live on every
-        --     read"
-        --   * "should keep the stock facetedUniqueValues reference stable until
-        --     its inputs change"
-        --   Both are about the feature registry and its memoization.
+        , describe "custom faceted row-model factories"
+            [ -- adapted: reference stability becomes value equality, and the
+              -- filter that changes this column's inputs is applied to the
+              -- other column, as in the vitest case.
+              test "should keep the stock facetedUniqueValues reference stable until its inputs change" <|
+                \_ ->
+                    let
+                        filteredByName : Options
+                        filteredByName =
+                            { defaults | columnFilters = [ { id = "name", value = Value.String "Alice" } ] }
+                    in
+                    Expect.all
+                        [ \_ -> Expect.equal (uniqueValues defaults "team") (uniqueValues defaults "team")
+                        , \_ -> Expect.equal (facetNames defaults "team") (facetNames defaults "team")
+                        , \_ -> Expect.equal (minMax defaults "age") (minMax defaults "age")
+                        , \_ ->
+                            Expect.notEqual (uniqueValues filteredByName "team")
+                                (uniqueValues defaults "team")
+                        , \_ ->
+                            Expect.equal (uniqueValues filteredByName "team")
+                                (uniqueValues filteredByName "team")
+                        ]
+                        ()
+            , -- adapted: the port's counterpart of a custom faceted values
+              -- source is the column's own `withGetUniqueValues`, which the
+              -- faceting functions consult on every read rather than caching.
+              test "should call a custom facetedUniqueValues factory live on every read" <|
+                \_ ->
+                    let
+                        plainTags : Table.Config Person
+                        plainTags =
+                            Table.config
+                                [ Table.column "tags" (.tags >> List.map Value.String >> Value.List) ]
+
+                        splitTags : Table.Config Person
+                        splitTags =
+                            Table.config
+                                [ Table.column "tags" (.tags >> List.map Value.String >> Value.List)
+                                    |> Table.withGetUniqueValues (.tags >> List.map Value.String)
+                                ]
+
+                        uniqueWith : Table.Config Person -> List ( Value, Int )
+                        uniqueWith cfg =
+                            Table.facetedUniqueValues cfg
+                                Table.initialState
+                                (Table.coreRowModelFromList cfg Table.initialState data)
+                                "tags"
+                    in
+                    Expect.equal
+                        { split = uniqueWith splitTags
+                        , plainCount = List.length (uniqueWith plainTags)
+                        }
+                        { split =
+                            [ ( Value.String "a", 2 )
+                            , ( Value.String "b", 2 )
+                            , ( Value.String "c", 1 )
+                            ]
+                        , plainCount = 4
+                        }
+            ]
         ]
 
 
@@ -381,8 +435,23 @@ columnFacetingFeatureSuite =
             \_ ->
                 Table.facetedUniqueValues employeeConfig (employeeState []) employeeModel "status"
                     |> Expect.equal [ ( Value.String "active", 2 ), ( Value.Null, 1 ) ]
-
-        -- excluded: "caches faceted factory functions per column and global
-        --   context". Faceting is not a registered factory here, so there is
-        --   nothing to cache and no call count to spy on.
+        , -- adapted: there is no factory to cache, so the call counts become
+          -- the observable half: a column context and the global context each
+          -- keep their own value, and repeated reads of either agree.
+          test "caches faceted factory functions per column and global context" <|
+            \_ ->
+                let
+                    facetOf : String -> List ( Value, Int )
+                    facetOf columnId =
+                        Table.facetedUniqueValues employeeConfig (employeeState []) employeeModel columnId
+                in
+                Expect.all
+                    [ \_ ->
+                        Expect.equal [ ( Value.String "active", 2 ), ( Value.Null, 1 ) ]
+                            (facetOf "status")
+                    , \_ -> Expect.equal (facetOf "status") (facetOf "status")
+                    , \_ -> Expect.equal (facetOf Table.globalFacetKey) (facetOf Table.globalFacetKey)
+                    , \_ -> Expect.notEqual (facetOf "status") (facetOf "firstName")
+                    ]
+                    ()
         ]
