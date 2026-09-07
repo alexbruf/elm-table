@@ -6,7 +6,7 @@ dist/
 .claude/
 elm-stuff/
 docs.json
-reference/
+/reference/
 demo/dist/
 demo/elm-stuff/
 examples/elm-stuff/
