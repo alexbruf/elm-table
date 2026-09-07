@@ -1,0 +1,8 @@
+/* The market-monitor chrome from the React example's shell. */
+.app-bar { display: flex; align-items: center; justify-content: space-between; padding: 6px 8px; margin-bottom: 8px; background: #16181d; color: #f6f7f9; border-radius: 6px; letter-spacing: .08em; font-size: 12px; }
+.feed-status { display: inline-flex; align-items: center; gap: 6px; }
+.status-dot { width: 8px; height: 8px; border-radius: 50%; background: #cf222e; display: inline-block; }
+.feed-status.is-running .status-dot { background: #1a7f37; }
+.market-statusbar { display: flex; gap: 16px; font-size: 12px; }
+.sparkline { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; letter-spacing: -1px; white-space: nowrap; }
+td.up, td.down { font-variant-numeric: tabular-nums; }

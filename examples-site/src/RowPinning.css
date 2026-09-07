@@ -1,0 +1,3 @@
+/* Pinned rows are sticky and tinted, as in the React example. */
+.pinned-row { background: #cfe8ff; z-index: 1; }
+.pinned-row td { background: #cfe8ff; }

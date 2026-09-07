@@ -1,0 +1,14 @@
+/* The scroll container and the fixed layout the sticky cells need, from the
+   React example's index.css. */
+.sticky-table-container {
+  border: 1px solid var(--line);
+  overflow-x: scroll;
+  width: 100%;
+  max-width: 960px;
+  position: relative;
+}
+.sticky-table-container table { table-layout: fixed; }
+.sticky-table-container th { background: #f6f7f9; }
+.sticky-table-container td { background: var(--paper); }
+.sticky-table-container th,
+.sticky-table-container td { overflow: hidden; }

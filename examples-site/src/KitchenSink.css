@@ -1,0 +1,13 @@
+/* Kitchen-sink chrome: the toolbar, the scroll container the sticky pinned
+   columns need, and the drag handle. */
+.toolbar { display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; }
+.table-container { overflow-x: auto; border: 1px solid var(--line); position: relative; outline: none; }
+.table-container table { table-layout: fixed; }
+.table-container th { background: #f6f7f9; vertical-align: top; }
+.table-container td { background: var(--paper); overflow: hidden; }
+.table-container td.cell-selected { background: var(--accent-wash); }
+.table-container tr.pinned-row td { background: #cfe8ff; }
+.header-row { display: flex; gap: 4px; align-items: flex-start; }
+.header-main { flex: 1; min-width: 0; }
+.drag-handle { cursor: grab; padding: 0 4px; }
+.checkbox-list summary { cursor: pointer; font-weight: 600; }
