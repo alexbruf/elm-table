@@ -1,5 +1,6 @@
 module Table.Internal.Types exposing
-    ( Cell
+    ( AggregationContext
+    , Cell
     , CellDirection(..)
     , CellSelectionBounds
     , CellSelectionEdges
@@ -15,6 +16,7 @@ module Table.Internal.Types exposing
     , ColumnPinning
     , ColumnRegion(..)
     , Config
+    , ContextAggregationFn(..)
     , Expanded(..)
     , GroupedColumnMode(..)
     , Header(..)
@@ -108,6 +110,10 @@ type alias ColumnFields row =
     , spanColumns : Maybe (Row row -> Int)
     , spanRows : Maybe (SpanRows row)
     , enableCellSelection : Bool
+    , customFilterMeta : Maybe (Row row -> Value -> ( Bool, Maybe Value ))
+    , aggregationFns : Maybe (List ( String, AggregationFn ))
+    , contextAggregationFn : Maybe (ContextAggregationFn row)
+    , getAggregationValue : Maybe (AggregationContext row -> Value)
     }
 
 
@@ -207,6 +213,12 @@ type alias Config row =
     , cellSelectionFilter : Maybe (Cell -> Bool)
     , enableCellRangeSelection : Bool
     , enableMultiCellRangeSelection : Bool
+    , manualAggregation : Bool
+    , autoResetAll : Maybe Bool
+    , autoResetPageIndex : Maybe Bool
+    , autoResetExpanded : Maybe Bool
+    , autoResetSorting : Maybe Bool
+    , autoResetCellSelection : Maybe Bool
     }
 
 
@@ -458,6 +470,9 @@ type alias RowFields row =
     , groupingValue : Value
     , leafRows : List (Row row)
     , aggregatedValues : Dict String Value
+    , aggregationResults : Dict String (Dict String Value)
+    , columnFilters : Dict String Bool
+    , columnFiltersMeta : Dict String Value
     }
 
 
@@ -535,3 +550,38 @@ type alias HeaderGroup row =
     , depth : Int
     , headers : List (Header row)
     }
+
+
+
+-- PHASE 10
+
+
+{-| What one aggregation sees while it runs. Ports `AggregationContext` of
+`row-aggregation/rowAggregationFeature.types.ts`, minus its `column` and
+`table` members: there is no table instance and the column is fixed by the
+call site.
+
+`rows` is the depth-selected frontier and `values` are that frontier's values
+for `columnId`. `subRows` and `subRowValues` are the immediate sub-rows of a
+group row and the values they already carry, and are empty for root or
+caller-supplied-row aggregation, where `groupingRow` is `Nothing` too.
+
+-}
+type alias AggregationContext row =
+    { columnId : String
+    , maxDepth : Int
+    , rows : List (Row row)
+    , values : List Value
+    , subRows : List (Row row)
+    , subRowValues : List Value
+    , groupingRow : Maybe (Row row)
+    }
+
+
+{-| An aggregation that reads the whole `AggregationContext` instead of only
+the values, TanStack's `AggregationFnDef.aggregate`. It cannot live in
+`Table.AggregationFn`, which this module imports and which therefore cannot
+mention `Row`. Opaque outside the package.
+-}
+type ContextAggregationFn row
+    = ContextAggregationFn (AggregationContext row -> Value)

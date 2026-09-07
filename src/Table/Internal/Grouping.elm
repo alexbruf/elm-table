@@ -46,7 +46,8 @@ import Table.Value as Value exposing (Value(..))
 type alias Resolved row =
     { id : String
     , groupIndex : Int
-    , aggregationFn : Maybe AggregationFn
+    , fold : Maybe (Aggregation.Fold row)
+    , entries : Maybe (List ( String, Maybe AggregationFn ))
     , maxDepth : Int
     , read : Row row -> Value
     }
@@ -134,7 +135,8 @@ resolveColumn : Config row -> RowModel row -> List String -> Column row -> Resol
 resolveColumn cfg model grouping col =
     { id = Column.id col
     , groupIndex = indexOf (Column.id col) grouping
-    , aggregationFn = Aggregation.resolveFn cfg model col
+    , fold = Aggregation.resolveFold cfg model col
+    , entries = Maybe.map Aggregation.resolveEntries (Column.fields col).aggregationFns
     , maxDepth = (Column.fields col).maxAggregationDepth
     , read = valueReader cfg (Column.id col)
     }
@@ -208,26 +210,37 @@ makeGroup env depth parentId columnId index bucket =
         leaves : List (Row row)
         leaves =
             terminalRows members
-    in
-    Row
-        { id = groupId
-        , index = index
-        , depth = depth
-        , original =
-            case leaves of
-                leaf :: _ ->
-                    Row.original leaf
 
-                [] ->
-                    Row.original bucket.first
-        , subRows = subRows
-        , parentId = parentId
-        , originalSubRows = []
-        , groupingColumnId = Just columnId
-        , groupingValue = groupingValue
-        , leafRows = leaves
-        , aggregatedValues = aggregateAll env depth bucket.first members subRows
-        }
+        -- The group row is built before its own aggregates so that an
+        -- aggregation reading the context can be handed it as `groupingRow`,
+        -- which is what TanStack's lazily filled `_aggregationValuesCache`
+        -- amounts to.
+        base : Row row
+        base =
+            Row
+                { id = groupId
+                , index = index
+                , depth = depth
+                , original =
+                    case leaves of
+                        leaf :: _ ->
+                            Row.original leaf
+
+                        [] ->
+                            Row.original bucket.first
+                , subRows = subRows
+                , parentId = parentId
+                , originalSubRows = []
+                , groupingColumnId = Just columnId
+                , groupingValue = groupingValue
+                , leafRows = leaves
+                , aggregatedValues = Dict.empty
+                , aggregationResults = Dict.empty
+                , columnFilters = Dict.empty
+                , columnFiltersMeta = Dict.empty
+                }
+    in
+    aggregateAll env depth bucket.first members subRows base
 
 
 {-| `subRows.forEach(subRow => subRow.parentId = id)`.
@@ -258,34 +271,108 @@ terminalRowsOf (Row f) =
 -- AGGREGATION
 
 
-aggregateAll : Env row -> Int -> Row row -> List (Row row) -> List (Row row) -> Dict String Value
-aggregateAll env depth first members subRows =
-    List.foldl
-        (\col acc -> Dict.insert col.id (aggregateOne depth first members subRows col) acc)
-        Dict.empty
-        env.columns
+aggregateAll : Env row -> Int -> Row row -> List (Row row) -> List (Row row) -> Row row -> Row row
+aggregateAll env depth first members subRows base =
+    case base of
+        Row f ->
+            let
+                ( values, results ) =
+                    List.foldl (aggregateInto depth first members subRows base)
+                        ( Dict.empty, Dict.empty )
+                        env.columns
+            in
+            Row { f | aggregatedValues = values, aggregationResults = results }
 
 
-aggregateOne : Int -> Row row -> List (Row row) -> List (Row row) -> Resolved row -> Value
-aggregateOne depth first members subRows col =
+aggregateInto :
+    Int
+    -> Row row
+    -> List (Row row)
+    -> List (Row row)
+    -> Row row
+    -> Resolved row
+    -> ( Dict String Value, Dict String (Dict String Value) )
+    -> ( Dict String Value, Dict String (Dict String Value) )
+aggregateInto depth first members subRows base col ( values, results ) =
     if col.groupIndex >= 0 && col.groupIndex <= depth then
         -- The active grouping column and its ancestors expose the value the
         -- first member of the bucket carries.
-        col.read first
+        ( Dict.insert col.id (col.read first) values, results )
 
     else
-        case col.aggregationFn of
+        case col.entries of
+            Just entries ->
+                ( Dict.insert col.id Null values
+                , Dict.insert col.id (multiResults col members subRows entries) results
+                )
+
             Nothing ->
-                Null
+                ( Dict.insert col.id (scalarValue col members subRows base) values, results )
 
-            Just fn ->
-                case ( canMerge col subRows, AggregationFn.merge fn ) of
-                    ( True, Just mergeFn ) ->
-                        mergeFn (List.map col.read subRows)
 
-                    _ ->
-                        AggregationFn.aggregate fn
-                            (List.map col.read (Aggregation.frontier col.maxDepth members))
+scalarValue : Resolved row -> List (Row row) -> List (Row row) -> Row row -> Value
+scalarValue col members subRows groupRow =
+    case col.fold of
+        Nothing ->
+            Null
+
+        Just (Aggregation.Values fn) ->
+            case ( canMerge col subRows, AggregationFn.merge fn ) of
+                ( True, Just mergeFn ) ->
+                    mergeFn (List.map col.read subRows)
+
+                _ ->
+                    AggregationFn.aggregate fn
+                        (List.map col.read (Aggregation.frontier col.maxDepth members))
+
+        Just (Aggregation.Context fn) ->
+            fn
+                (Aggregation.contextFor col.id
+                    col.maxDepth
+                    col.read
+                    (Aggregation.frontier col.maxDepth members)
+                    subRows
+                    (List.map col.read subRows)
+                    (Just groupRow)
+                )
+
+
+{-| `getSubRowResult`: for the list option a sub-row result is read out of the
+sub-row's keyed object under the same entry id.
+-}
+multiResults : Resolved row -> List (Row row) -> List (Row row) -> List ( String, Maybe AggregationFn ) -> Dict String Value
+multiResults col members subRows entries =
+    let
+        rows : List (Row row)
+        rows =
+            Aggregation.frontier col.maxDepth members
+    in
+    Dict.fromList
+        (List.map
+            (\( entryId, entryFn ) ->
+                ( entryId
+                , case entryFn of
+                    Nothing ->
+                        Null
+
+                    Just fn ->
+                        case ( canMerge col subRows, AggregationFn.merge fn ) of
+                            ( True, Just mergeFn ) ->
+                                mergeFn
+                                    (List.map
+                                        (\subRow ->
+                                            Maybe.withDefault Null
+                                                (Row.aggregationValueById subRow col.id entryId)
+                                        )
+                                        subRows
+                                    )
+
+                            _ ->
+                                AggregationFn.aggregate fn (List.map col.read rows)
+                )
+            )
+            entries
+        )
 
 
 {-| `canMerge` in `aggregateColumnValue`: every child is a group row of some

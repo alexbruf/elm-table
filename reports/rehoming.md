@@ -368,3 +368,78 @@ Each entry is the exact addition that would let it be ported.
    terminal rows").
    - `Table.AggregationFn.customWithContext : ({ values : List Value, subRows : List Value, isGroupingRow : Bool } -> Value) -> AggregationFn`,
      the shape TanStack's `AggregationContext` gives a custom `aggregate`.
+
+## After the API gap pass
+
+The four "Needs API" additions above landed (as `Table.rowColumnFilters` /
+`rowColumnFiltersMeta` / `rowFilterMeta` / `withCustomFilterMeta` /
+`Table.FilterFn.withMeta`, `Table.withAggregationFns` /
+`rowAggregationResults` / `aggregationValueById`, `withGetAggregationValue` /
+`Config.manualAggregation`, and `Table.aggregationFnWithContext` /
+`withContextAggregationFn` rather than the exact names sketched above — see
+`reports/api-gaps.md` for the final signatures and the design notes on each
+rename). All 10 cases in the "Needs API" list are now ported.
+
+| vitest file | cases | ported before | ported after | excluded after |
+| --- | --- | --- | --- | --- |
+| `implementation/features/column-filtering/createFilteredRowModel.test.ts` | 38 | 32 | 37 | 1 |
+| `implementation/features/row-aggregation/rowAggregationFeature.test.ts` | 18 | 13 | 18 | 0 |
+
+`createFilteredRowModel.test.ts`'s one remaining exclusion, "should apply no
+global filtering and warn in dev when the globalFilterFn name is not
+registered", stays in the registry group: there is no name-keyed fn registry
+to fail to resolve against.
+
+### Newly re-homed cases
+
+### `createFilteredRowModel.test.ts` → `tests/FilteringRowModelTest.elm`
+
+61. "should populate row.columnFiltersMeta via the addMeta callback of a
+    column filterFn" — `addMeta` is a callback in TanStack and a returned
+    `Maybe Value` here; the fixture's `{ inspected: value }` becomes the
+    tagged pair `List [ String "inspected", value ]`, since `Value` has no
+    object variant.
+62. "should populate row.columnFiltersMeta via the addMeta callback of a
+    custom global filter" — same shape, keyed by the column id the global
+    filter evaluated, as in the vitest case.
+63. "should preserve filter flags and metadata on nested root-first clones"
+    and 64. "…nested leaf-first clones" — the `for (const filterFromLeafRows
+    of [false, true])` loop that generates both vitest names becomes two
+    separate `test`s; `toBe` between the filtered row's maps and the
+    pre-filtered row's maps (one mutated object in TanStack) becomes equality
+    between `Table.filteredRowModel`'s rows and `Table.taggedRowModel`'s.
+65. "should tag flat rows with per-column pass/fail and the __global__ flag"
+    — read straight off `Table.taggedRowModel`, TanStack's pre-filtered rows
+    after the filtered model has written their flags in place.
+66. "should reset columnFilters and columnFiltersMeta on rows after all
+    filters are removed" — `setColumnFilters([])` plus
+    `setGlobalFilter(undefined)` becomes a second state with no filters run
+    over the model the first pass tagged.
+
+### `rowAggregationFeature.test.ts` → `tests/AggregationTest.elm`
+
+67. "uses handled column values and configurable local fallback" and 68.
+    "supports a shared aggregation value provider through defaultColumn" —
+    both port through `withGetAggregationValue`, one at the column and the
+    other applied to every column the way `defaultColumn` does.
+69. "warns and preserves undefined keys for invalid multi configurations" —
+    no `console.warn` spy; the duplicated aggregation key keeping its entry
+    and giving `Null` is the asserted half, ported through
+    `withAggregationFns`.
+70. "provides groupingRow only for grouped aggregation contexts" and 71.
+    "lets aggregate choose immediate sub-rows instead of terminal rows" —
+    both port through `withContextAggregationFn` /
+    `Table.aggregationFnWithContext`, reading `AggregationContext`'s
+    `groupingRow` and `subRows` fields TanStack's context also carries.
+
+## Totals (after the API gap pass)
+
+| | cases | ported | excluded | excluded % |
+| --- | --- | --- | --- | --- |
+| before this pass | 1137 | 1082 | 55 | 4.8% |
+| after this pass | 1137 | 1092 | 45 | 4.0% |
+
+`tests/AutoResetTest.elm` is new and out of scope of the 1,137-case baseline
+(it ports a file that had no counterpart until `Table.autoReset` existed);
+its own count is 34 cases, 32 ported, 2 excluded (spies and a
+never-scheduled-mount assertion) — see `reports/api-gaps.md`.

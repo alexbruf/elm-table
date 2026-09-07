@@ -92,6 +92,87 @@ rowNames =
     List.map (Table.rowOriginal >> nestedName)
 
 
+{-| The `metaFilterFn` of the vitest file: a substring match that also records
+what it inspected.
+-}
+metaFilterFn : FilterFn.FilterFn
+metaFilterFn =
+    FilterFn.custom
+        (\dataValue filterValue ->
+            String.contains (Value.toString filterValue) (Value.toString dataValue)
+        )
+        |> FilterFn.withMeta (\dataValue _ -> Just (Value.List [ Value.String "inspected", dataValue ]))
+
+
+{-| `{ inspected: name }` as a `Value`.
+-}
+inspected : String -> Maybe Value
+inspected name =
+    Just (Value.List [ Value.String "inspected", Value.String name ])
+
+
+{-| The nested `keep-parent` / `keep-child` fixture of the "preserve filter
+flags and metadata" cases: every row of the filtered model with its flag and
+its meta, checked against the tagged pre-filtered model along the way.
+-}
+clonedNestedTags : (Table.Config NestedRow -> Table.Config NestedRow) -> List ( String, Maybe Bool, Maybe Value )
+clonedNestedTags tweak =
+    let
+        cfg : Table.Config NestedRow
+        cfg =
+            tweak
+                (Table.config
+                    [ Table.column "name" (nestedName >> Value.String)
+                        |> Table.withFilterFn metaFilterFn
+                    ]
+                    |> Table.withSubRows nestedSubRows
+                )
+
+        data : List NestedRow
+        data =
+            [ NestedRow "keep-parent" [ leaf "keep-child" ] ]
+
+        core : Table.RowModel NestedRow
+        core =
+            Table.coreRowModelFromList cfg keepFilter data
+
+        preTagged : Table.RowModel NestedRow
+        preTagged =
+            Table.taggedRowModel cfg keepFilter core
+
+        model : Table.RowModel NestedRow
+        model =
+            Table.filteredRowModel cfg keepFilter core
+    in
+    List.map
+        (\row ->
+            let
+                sameAsPre : Bool
+                sameAsPre =
+                    case Table.findRow preTagged (Table.rowId row) of
+                        Just preRow ->
+                            (Table.rowColumnFilters preRow == Table.rowColumnFilters row)
+                                && (Table.rowColumnFiltersMeta preRow == Table.rowColumnFiltersMeta row)
+
+                        Nothing ->
+                            False
+
+                inModel : Bool
+                inModel =
+                    Table.findRow model (Table.rowId row) == Just row
+            in
+            if sameAsPre && inModel then
+                ( nestedName (Table.rowOriginal row)
+                , Dict.get "name" (Table.rowColumnFilters row)
+                , Table.rowFilterMeta row "name"
+                )
+
+            else
+                ( "<row does not match the pre-filtered one>", Nothing, Nothing )
+        )
+        model.flatRows
+
+
 {-| The filtered row model of the nested fixture with the `keep` filter.
 -}
 nestedModel : (Table.Config NestedRow -> Table.Config NestedRow) -> List NestedRow -> Table.RowModel NestedRow
@@ -564,23 +645,128 @@ createFilteredRowModelSuite =
                         )
                         ( False, [ "keep" ] )
             ]
+        , describe "columnFiltersMeta"
+            [ -- adapted: `addMeta` is a callback in TanStack and a returned
+              -- `Maybe Value` here, and the meta object `{ inspected: value }`
+              -- becomes the tagged pair `List [ String "inspected", value ]`,
+              -- since `Value` has no object variant. The rows that fail are
+              -- read off `Table.taggedRowModel`, which is what TanStack's
+              -- `getPreFilteredRowModel()` rows carry after the filtered model
+              -- has written its flags onto them in place.
+              test "should populate row.columnFiltersMeta via the addMeta callback of a column filterFn" <|
+                \_ ->
+                    let
+                        cfg : Table.Config TestRow
+                        cfg =
+                            Table.config
+                                [ Table.column "name" (.name >> Value.String)
+                                    |> Table.withFilterFn metaFilterFn
+                                ]
 
-        -- excluded: describe "columnFiltersMeta"
-        --   * "should populate row.columnFiltersMeta via the addMeta callback of
-        --     a column filterFn"
-        --   * "should populate row.columnFiltersMeta via the addMeta callback of
-        --     a custom global filter"
-        --   * "should preserve filter flags and metadata on nested
-        --     ${leaf-first|root-first} clones"
-        --   A `Row` here carries no `columnFilters` / `columnFiltersMeta` map
-        --   and a filter fn has no `addMeta` callback.
-        --
-        -- excluded: describe "row.columnFilters flags"
-        --   * "should tag flat rows with per-column pass/fail and the __global__
-        --     flag"
-        --   * "should reset columnFilters and columnFiltersMeta on rows after all
-        --     filters are removed"
-        --   Same reason: the flags are mutated onto the pre-filtered rows.
+                        state : Table.State
+                        state =
+                            withColumnFilters [ { id = "name", value = Value.String "keep" } ] Table.initialState
+                    in
+                    Table.coreRowModelFromList cfg state [ { name = "keep" }, { name = "drop" } ]
+                        |> Table.taggedRowModel cfg state
+                        |> .flatRows
+                        |> List.map (\row -> Table.rowFilterMeta row "name")
+                        |> Expect.equal [ inspected "keep", inspected "drop" ]
+            , test "should populate row.columnFiltersMeta via the addMeta callback of a custom global filter" <|
+                \_ ->
+                    let
+                        cfg : Table.Config TestRow
+                        cfg =
+                            Table.config [ Table.column "name" (.name >> Value.String) ]
+                                |> Table.withGlobalFilterFn metaFilterFn
+
+                        state : Table.State
+                        state =
+                            withGlobal (Value.String "keep") Table.initialState
+                    in
+                    -- Global filter meta is keyed by the column id it evaluated.
+                    Table.coreRowModelFromList cfg state [ { name = "keep" }, { name = "drop" } ]
+                        |> Table.taggedRowModel cfg state
+                        |> .flatRows
+                        |> List.map (\row -> Table.rowFilterMeta row "name")
+                        |> Expect.equal [ inspected "keep", inspected "drop" ]
+            , -- adapted: `toBe` between the filtered row's map and the
+              -- pre-filtered row's map is one mutated object in TanStack and
+              -- two equal values here.
+              test "should preserve filter flags and metadata on nested root-first clones" <|
+                \_ ->
+                    clonedNestedTags identity
+                        |> Expect.equal
+                            [ ( "keep-parent", Just True, inspected "keep-parent" )
+                            , ( "keep-child", Just True, inspected "keep-child" )
+                            ]
+            , test "should preserve filter flags and metadata on nested leaf-first clones" <|
+                \_ ->
+                    clonedNestedTags (\cfg -> { cfg | filterFromLeafRows = True })
+                        |> Expect.equal
+                            [ ( "keep-parent", Just True, inspected "keep-parent" )
+                            , ( "keep-child", Just True, inspected "keep-child" )
+                            ]
+            ]
+        , describe "row.columnFilters flags"
+            [ test "should tag flat rows with per-column pass/fail and the __global__ flag" <|
+                \_ ->
+                    let
+                        cfg : Table.Config TestRow
+                        cfg =
+                            Table.config [ Table.column "name" (.name >> Value.String) ]
+
+                        state : Table.State
+                        state =
+                            Table.initialState
+                                |> withColumnFilters [ { id = "name", value = Value.String "keep" } ]
+                                |> withGlobal (Value.String "drop")
+                    in
+                    Table.coreRowModelFromList cfg state [ { name = "keep" }, { name = "drop" } ]
+                        |> Table.taggedRowModel cfg state
+                        |> .flatRows
+                        |> List.map (Table.rowColumnFilters >> Dict.toList)
+                        |> Expect.equal
+                            [ [ ( Table.globalFacetKey, False ), ( "name", True ) ]
+                            , [ ( Table.globalFacetKey, True ), ( "name", False ) ]
+                            ]
+            , -- adapted: `setColumnFilters([])` plus `setGlobalFilter(undefined)`
+              -- becomes a second state with no filters, run over the model the
+              -- first pass tagged.
+              test "should reset columnFilters and columnFiltersMeta on rows after all filters are removed" <|
+                \_ ->
+                    let
+                        cfg : Table.Config TestRow
+                        cfg =
+                            Table.config
+                                [ Table.column "name" (.name >> Value.String)
+                                    |> Table.withFilterFn metaFilterFn
+                                ]
+
+                        filtered : Table.State
+                        filtered =
+                            Table.initialState
+                                |> withColumnFilters [ { id = "name", value = Value.String "keep" } ]
+
+                        tagged : Table.RowModel TestRow
+                        tagged =
+                            Table.coreRowModelFromList cfg filtered [ { name = "keep" }, { name = "drop" } ]
+                                |> Table.taggedRowModel cfg filtered
+
+                        cleared : Table.RowModel TestRow
+                        cleared =
+                            Table.filteredRowModel cfg Table.initialState tagged
+                    in
+                    Expect.equal
+                        { taggedFlags = List.map (Table.rowColumnFilters >> Dict.isEmpty) tagged.flatRows
+                        , clearedFlags = List.map (Table.rowColumnFilters >> Dict.isEmpty) cleared.flatRows
+                        , clearedMeta = List.map (Table.rowColumnFiltersMeta >> Dict.isEmpty) cleared.flatRows
+                        }
+                        { taggedFlags = [ False, False ]
+                        , clearedFlags = [ True, True ]
+                        , clearedMeta = [ True, True ]
+                        }
+            ]
         , describe "global filtering edge cases"
             [ test "should filter a column when its first row value is undefined" <|
                 \_ ->

@@ -2,6 +2,11 @@ module Table.Internal.Config exposing
     ( config
     , initialState
     , rowIdFor
+    , withAutoResetAll
+    , withAutoResetCellSelection
+    , withAutoResetExpanded
+    , withAutoResetPageIndex
+    , withAutoResetSorting
     , withCellRangeSelection
     , withCellSelection
     , withCellSelectionWhen
@@ -10,6 +15,7 @@ module Table.Internal.Config exposing
     , withGetRowId
     , withGlobalFilterFn
     , withIsRowExpanded
+    , withManualAggregation
     , withMultiCellRangeSelection
     , withRowCanExpand
     , withRowSelection
@@ -72,6 +78,12 @@ config columns =
     , cellSelectionFilter = Nothing
     , enableCellRangeSelection = True
     , enableMultiCellRangeSelection = True
+    , manualAggregation = False
+    , autoResetAll = Nothing
+    , autoResetPageIndex = Nothing
+    , autoResetExpanded = Nothing
+    , autoResetSorting = Nothing
+    , autoResetCellSelection = Nothing
     }
 
 
@@ -197,6 +209,55 @@ withMultiCellRangeSelection enabled cfg =
 withRowSelection : (Row row -> Bool) -> Config row -> Config row
 withRowSelection fn cfg =
     { cfg | enableRowSelection = fn }
+
+
+{-| Hand every column's aggregation value to the caller: `Table.aggregationValue`
+and `Table.aggregationValueOf` return `Null` for a column with no
+`withGetAggregationValue`. Ports the `manualAggregation` table option.
+-}
+withManualAggregation : Bool -> Config row -> Config row
+withManualAggregation flag cfg =
+    { cfg | manualAggregation = flag }
+
+
+{-| Force every auto-reset on or off, overriding each individual flag. Ports
+`autoResetAll`.
+-}
+withAutoResetAll : Bool -> Config row -> Config row
+withAutoResetAll flag cfg =
+    { cfg | autoResetAll = Just flag }
+
+
+{-| Override whether `Table.autoReset` returns to page 0. The default is on
+unless `manualPagination` is set. Ports `autoResetPageIndex`.
+-}
+withAutoResetPageIndex : Bool -> Config row -> Config row
+withAutoResetPageIndex flag cfg =
+    { cfg | autoResetPageIndex = Just flag }
+
+
+{-| Override whether `Table.autoReset` collapses the expanded rows. The
+default is on unless `manualExpanding` is set. Ports `autoResetExpanded`.
+-}
+withAutoResetExpanded : Bool -> Config row -> Config row
+withAutoResetExpanded flag cfg =
+    { cfg | autoResetExpanded = Just flag }
+
+
+{-| Override whether `Table.autoReset` clears the sorting on a data change.
+The default is off. Ports `autoResetSorting`.
+-}
+withAutoResetSorting : Bool -> Config row -> Config row
+withAutoResetSorting flag cfg =
+    { cfg | autoResetSorting = Just flag }
+
+
+{-| Override whether `Table.autoReset` clears the cell selection on a data
+change. The default is on. Ports `autoResetCellSelection`.
+-}
+withAutoResetCellSelection : Bool -> Config row -> Config row
+withAutoResetCellSelection flag cfg =
+    { cfg | autoResetCellSelection = Just flag }
 
 
 {-| Resolve a row id the way `table_getRowId` does: `Config.getRowId` wins,

@@ -101,6 +101,16 @@ module Table
     , setColumnSize, setColumnSizing, resetColumnSize, resetColumnSizing
     , getHeaderSize, getHeaderStart
     , totalSize, leftTotalSize, centerTotalSize, rightTotalSize
+    , autoReset
+    , withAutoResetAll, withAutoResetPageIndex, withAutoResetExpanded
+    , withAutoResetSorting, withAutoResetCellSelection
+    , taggedRowModel
+    , rowColumnFilters, rowColumnFiltersMeta, rowFilterMeta
+    , withCustomFilterMeta
+    , AggregationContext, ContextAggregationFn
+    , withAggregationFns, withContextAggregationFn, withGetAggregationValue
+    , aggregationFnWithContext, withManualAggregation
+    , aggregationResults, rowAggregationResults, aggregationValueById
     , CellSpanIndex, RowSpanContext
     , withCellSpanning, withEnableCellSpanning
     , withSpanRows, withSpanRowsWhen, withSpanColumns, spanAllColumns
@@ -124,6 +134,7 @@ module Table
     , intersectCellSelectionBounds, subtractCellSelectionBounds, addCellSelectionBounds
     , mergeAdjacentCellSelectionBounds, expandCellSelectionBounds
     , applyCellSelectionBoundsOperations
+    -- Phase 10
     -- Phase 3 to 6 entries are the blocks above; elm-format hoists these
     -- markers to the end of the exposing list.
     )
@@ -417,6 +428,62 @@ Which columns render, in what order, and how wide each one is.
 @docs totalSize, leftTotalSize, centerTotalSize, rightTotalSize
 
 
+# Auto reset, filter meta, aggregation options
+
+The three corners of TanStack that need a caller to stand in for the table
+instance: the `autoReset*` scheduler, the per-row filter bookkeeping the
+filtered row model writes, and the aggregation options that hand a column's
+value to the caller.
+
+
+## Auto reset
+
+TanStack schedules a reset of one state slice whenever a row-model stage
+recomputes: the page index goes back to `0` when the data, the filters, the
+sorting or the grouping changed, the expanded rows collapse when the data,
+the filters or the grouping changed, and a data change also clears the
+sorting and the cell selection when those are switched on.
+
+There is no scheduler here, so [`autoReset`](#autoReset) is the whole thing
+as one pure step: produce your next `State` in `update`, then hand it and the
+previous one over.
+
+@docs autoReset
+@docs withAutoResetAll, withAutoResetPageIndex, withAutoResetExpanded
+@docs withAutoResetSorting, withAutoResetCellSelection
+
+
+## Filter meta
+
+`_createFilteredRowModel` writes a pass/fail flag and an optional meta value
+onto every row it tests, for every filter it evaluates, and the fuzzy-filter
+example then sorts by the rank its filter fn stored. The flags live on the
+rows [`filteredRowModel`](#filteredRowModel) returns; to read them for the
+rows it dropped, run [`taggedRowModel`](#taggedRowModel), which tags the same
+rows and drops nothing.
+
+The global filter's verdict is stored under
+[`globalFacetKey`](#globalFacetKey), TanStack's `__global__`, and its meta
+under the id of the column that produced it.
+
+@docs taggedRowModel
+@docs rowColumnFilters, rowColumnFiltersMeta, rowFilterMeta
+@docs withCustomFilterMeta
+
+
+## Aggregation options
+
+A column can aggregate with several functions at once, each under its own
+key, with a function of the whole [`AggregationContext`](#AggregationContext)
+rather than of the values alone, or not at all, with the caller supplying the
+value instead.
+
+@docs AggregationContext, ContextAggregationFn
+@docs withAggregationFns, withContextAggregationFn, withGetAggregationValue
+@docs aggregationFnWithContext, withManualAggregation
+@docs aggregationResults, rowAggregationResults, aggregationValueById
+
+
 # Cell spanning and cell selection
 
 Spans merge adjacent cells; cell selection tracks rectangular ranges,
@@ -482,6 +549,7 @@ import Set exposing (Set)
 import Table.AggregationFn exposing (AggregationFn)
 import Table.FilterFn exposing (FilterFn)
 import Table.Internal.Aggregation as Aggregation
+import Table.Internal.AutoReset as AutoReset
 import Table.Internal.CellSelection as CellSelection
 import Table.Internal.CellSelectionGeometry as CellSelectionGeometry
 import Table.Internal.CellSpanning as CellSpanning
@@ -3737,3 +3805,277 @@ selection as disjoint rectangles.
 applyCellSelectionBoundsOperations : List ( CellSelectionOperation, CellSelectionBounds ) -> List CellSelectionBounds
 applyCellSelectionBoundsOperations =
     CellSelectionGeometry.applyOperations
+
+
+
+-- PHASE 10
+-- Auto reset, filter meta, and the aggregation options that hand a column's
+-- value to the caller.
+-- TYPES
+
+
+{-| What one aggregation sees while it runs. Ports `AggregationContext`,
+minus its `column` and `table` members: there is no table instance and the
+column is fixed by the call site.
+
+`rows` is the depth-selected frontier and `values` are that frontier's values
+for `columnId`. `subRows` and `subRowValues` are the immediate sub-rows of a
+group row and the values they already carry, and are empty for root or
+caller-supplied-row aggregation, where `groupingRow` is `Nothing` too.
+
+-}
+type alias AggregationContext row =
+    Types.AggregationContext row
+
+
+{-| An aggregation that reads the whole
+[`AggregationContext`](#AggregationContext) instead of only the values, which
+is TanStack's `AggregationFnDef.aggregate`. Build one with
+[`aggregationFnWithContext`](#aggregationFnWithContext).
+
+It lives here rather than in `Table.AggregationFn` because that module is
+imported by the one that declares `Row` and so cannot mention it.
+
+-}
+type alias ContextAggregationFn row =
+    Types.ContextAggregationFn row
+
+
+
+-- AUTO RESET
+
+
+{-| Apply every reset TanStack's `autoReset*` scheduler would schedule for one
+change. Call it in `update` once you have the next `State`:
+
+    newState =
+        Table.autoReset config
+            { previous = model.tableState
+            , next = nextState
+            , dataChanged = False
+            }
+
+The page index goes back to `0` when the data, the column filters, the global
+filter, the sorting or the grouping changed; the expanded rows collapse when
+the data, the filters or the grouping changed (the grouped stage sits
+downstream of filtering, so a filter change reaches it even with no grouping
+active); and a data change clears the sorting and the cell selection.
+
+Each slice consults `autoResetAll`, then its own flag, then its default:
+[`withAutoResetPageIndex`](#withAutoResetPageIndex) defaults to on unless
+`Config.manualPagination` is set,
+[`withAutoResetExpanded`](#withAutoResetExpanded) to on unless
+`Config.manualExpanding` is set,
+[`withAutoResetSorting`](#withAutoResetSorting) to off, and
+[`withAutoResetCellSelection`](#withAutoResetCellSelection) to on.
+
+Every reset goes to the feature default, never to a remembered initial state:
+there is no `table.initialState` here.
+
+-}
+autoReset : Config row -> { previous : State, next : State, dataChanged : Bool } -> State
+autoReset =
+    AutoReset.autoReset
+
+
+{-| Force every auto-reset on or off, overriding each individual flag. Ports
+`autoResetAll`.
+-}
+withAutoResetAll : Bool -> Config row -> Config row
+withAutoResetAll =
+    Config.withAutoResetAll
+
+
+{-| Override whether [`autoReset`](#autoReset) returns to page 0. The default
+is on unless `Config.manualPagination` is set. Ports `autoResetPageIndex`.
+-}
+withAutoResetPageIndex : Bool -> Config row -> Config row
+withAutoResetPageIndex =
+    Config.withAutoResetPageIndex
+
+
+{-| Override whether [`autoReset`](#autoReset) collapses the expanded rows.
+The default is on unless `Config.manualExpanding` is set. Ports
+`autoResetExpanded`.
+-}
+withAutoResetExpanded : Bool -> Config row -> Config row
+withAutoResetExpanded =
+    Config.withAutoResetExpanded
+
+
+{-| Override whether [`autoReset`](#autoReset) clears the sorting on a data
+change. The default is off, as in TanStack. Ports `autoResetSorting`.
+-}
+withAutoResetSorting : Bool -> Config row -> Config row
+withAutoResetSorting =
+    Config.withAutoResetSorting
+
+
+{-| Override whether [`autoReset`](#autoReset) clears the cell selection on a
+data change. The default is on. Ports `autoResetCellSelection`.
+-}
+withAutoResetCellSelection : Bool -> Config row -> Config row
+withAutoResetCellSelection =
+    Config.withAutoResetCellSelection
+
+
+
+-- FILTER META
+
+
+{-| The pre-filtered row model with the filter flags and the filter meta
+written onto every row, dropping nothing.
+
+TanStack writes both maps onto the rows of `getPreFilteredRowModel()` in
+place while `getFilteredRowModel()` runs, so they can be read there for rows
+that did not survive. Rows are immutable here, so this is the function that
+hands those rows back. `Config.manualFiltering` skips it, exactly as it skips
+[`filteredRowModel`](#filteredRowModel).
+
+-}
+taggedRowModel : Config row -> State -> RowModel row -> RowModel row
+taggedRowModel cfg state model =
+    if cfg.manualFiltering then
+        model
+
+    else
+        Filtering.taggedRowModel cfg state model
+
+
+{-| Whether the row passed each filter [`filteredRowModel`](#filteredRowModel)
+evaluated, keyed by column id, plus [`globalFacetKey`](#globalFacetKey) for
+the global filter. Empty on every row model but a filtered one.
+-}
+rowColumnFilters : Row row -> Dict String Bool
+rowColumnFilters =
+    Row.columnFilters
+
+
+{-| The meta each filter recorded for the row, keyed by the column id it was
+evaluated for. A filter fn records meta when it was built with
+[`Table.FilterFn.withMeta`](Table-FilterFn#withMeta), a column when it was
+built with [`withCustomFilterMeta`](#withCustomFilterMeta).
+-}
+rowColumnFiltersMeta : Row row -> Dict String Value
+rowColumnFiltersMeta =
+    Row.columnFiltersMeta
+
+
+{-| The meta one column's filter recorded for the row. This is the rank a
+fuzzy filter stores and a custom sort then orders by.
+-}
+rowFilterMeta : Row row -> String -> Maybe Value
+rowFilterMeta =
+    Row.filterMeta
+
+
+{-| Filter this column with a predicate on whole rows that also produces the
+meta the filtered row model records for the row, TanStack's `addMeta`
+callback turned into a return value.
+
+[`withCustomFilter`](#withCustomFilter) is unchanged and records no meta;
+when a column carries both, this one wins.
+
+-}
+withCustomFilterMeta : (Row row -> Value -> ( Bool, Maybe Value )) -> Column row -> Column row
+withCustomFilterMeta =
+    Column.withCustomFilterMeta
+
+
+
+-- AGGREGATION OPTIONS
+
+
+{-| Aggregate this column with several aggregation functions at once, each
+under its own key: TanStack's `aggregationFn: ['count', 'mean', { id: 'range',
+aggregationFn: 'extent' }]`.
+
+The result is a keyed `Dict`, not one `Value`, so it is read back with
+[`aggregationResults`](#aggregationResults) and
+[`rowAggregationResults`](#rowAggregationResults) rather than with
+[`getValue`](#getValue), which gives `Null` for such a column. A duplicated
+key keeps its entry and gives `Null`, which is TanStack warning and keeping
+the key with `undefined`.
+
+-}
+withAggregationFns : List ( String, AggregationFn ) -> Column row -> Column row
+withAggregationFns =
+    Column.withAggregationFns
+
+
+{-| Aggregate this column with a function of the whole
+[`AggregationContext`](#AggregationContext). It takes precedence over
+[`withAggregationFn`](#withAggregationFn).
+-}
+withContextAggregationFn : ContextAggregationFn row -> Column row -> Column row
+withContextAggregationFn =
+    Column.withContextAggregationFn
+
+
+{-| The `AggregationFn.custom` of a fold that needs the context: the rows and
+values it is folding, the immediate sub-rows and their results, and the group
+row the result is for.
+
+It is here rather than in `Table.AggregationFn` because that module is
+imported by the one that declares `Row` and so cannot mention it.
+
+-}
+aggregationFnWithContext : (AggregationContext row -> Value) -> ContextAggregationFn row
+aggregationFnWithContext =
+    Types.ContextAggregationFn
+
+
+{-| Supply this column's aggregation value instead of computing it, TanStack's
+`getAggregationValue` column option. It short-circuits
+[`aggregationValue`](#aggregationValue) and
+[`aggregationValueOf`](#aggregationValueOf), before
+[`withManualAggregation`](#withManualAggregation) and before any aggregation
+function, and like TanStack it does not touch the grouped row model, which
+aggregates through the column's aggregation functions.
+
+TanStack lets the provider decline by returning `undefined` and fall back to
+the local aggregation; there is no counterpart for that here, since a
+provider that returns `Null` is TanStack's handled `{ value: undefined }`.
+
+-}
+withGetAggregationValue : (AggregationContext row -> Value) -> Column row -> Column row
+withGetAggregationValue =
+    Column.withGetAggregationValue
+
+
+{-| Hand every column's aggregation value to the caller:
+[`aggregationValue`](#aggregationValue) and
+[`aggregationValueOf`](#aggregationValueOf) give `Null` for a column without
+[`withGetAggregationValue`](#withGetAggregationValue). Ports the
+`manualAggregation` table option; like TanStack's it leaves the grouped row
+model alone.
+-}
+withManualAggregation : Bool -> Config row -> Config row
+withManualAggregation =
+    Config.withManualAggregation
+
+
+{-| The keyed counterpart of [`aggregationValue`](#aggregationValue) for a
+column built with [`withAggregationFns`](#withAggregationFns): one result per
+key. A column without the list option gives an empty `Dict`.
+-}
+aggregationResults : Config row -> RowModel row -> String -> Dict String Value
+aggregationResults =
+    Aggregation.aggregationResults
+
+
+{-| The keyed aggregation results a group row carries for one column, the
+counterpart of [`rowAggregatedValues`](#rowAggregatedValues) for a column
+built with [`withAggregationFns`](#withAggregationFns).
+-}
+rowAggregationResults : Row row -> String -> Dict String Value
+rowAggregationResults =
+    Row.aggregationResults
+
+
+{-| One keyed aggregation result of a group row: the row, the column id, then
+the aggregation key.
+-}
+aggregationValueById : Row row -> String -> String -> Maybe Value
+aggregationValueById =
+    Row.aggregationValueById
