@@ -80,3 +80,15 @@ input.filter-wide { width: 100%; padding: 2px 4px; border: 1px solid var(--line)
 .edge-right { border-right: 2px solid var(--accent); }
 .up { color: #1a7f37; }
 .down { color: #cf222e; }
+
+/* Virtualization: the fixed-height scroll container, and the fixed row height
+   the virtual list divides a scroll position by. */
+.virtual-container { position: relative; overflow: auto; border: 1px solid var(--line); background: var(--paper); }
+.virtual-head, .virtual-body, .virtual-grid { border: 0; border-collapse: collapse; table-layout: fixed; }
+.virtual-head { position: sticky; top: 0; z-index: 1; }
+.virtual-head th, .virtual-grid thead th { height: 32px; padding: 0 6px; overflow: hidden; white-space: nowrap; }
+.virtual-grid thead th { position: sticky; top: 0; z-index: 1; }
+.virtual-body tbody, .virtual-grid tbody { border: 0; }
+.virtual-body tr, .virtual-grid tbody tr { height: 33px; }
+.virtual-body td, .virtual-grid tbody td { height: 33px; padding: 0 6px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.virtual-grid th.virtual-spacer, .virtual-grid td.virtual-spacer { padding: 0; border: 0; }
