@@ -20,7 +20,7 @@ ten so examples can show `Null` handling.
 
 -}
 
-import Random exposing (Generator)
+import Random exposing (Generator, Seed)
 import Time
 
 
@@ -76,34 +76,40 @@ statusToString status =
 -}
 makeData : Int -> List Int -> List Person
 makeData seed lengths =
-    Random.step (level lengths "") (Random.initialSeed seed)
-        |> Tuple.first
+    Tuple.first (level lengths "" (Random.initialSeed seed))
 
 
-level : List Int -> String -> Generator (List Person)
-level lengths prefix =
+{-| The seed is threaded by hand rather than composed with `Random.map2`,
+because one `map2` per row nests one JavaScript call frame per row: the
+50,000 rows the virtualization examples ask for overflow the stack. Stepping
+the seed in a fold is flat, and produces the same people, because `map2`
+steps its first generator before its second.
+-}
+level : List Int -> String -> Seed -> ( List Person, Seed )
+level lengths prefix seed =
     case lengths of
         [] ->
-            Random.constant []
+            ( [], seed )
 
         len :: rest ->
-            List.range 0 (len - 1)
-                |> List.map
-                    (\i ->
-                        let
-                            id =
-                                prefix ++ String.fromInt i
-                        in
-                        Random.map2 (\p subs -> { p | id = id, subRows = SubRows subs })
-                            personGenerator
-                            (level rest (id ++ "."))
-                    )
-                |> sequence
+            List.foldl (levelStep rest prefix) ( [], seed ) (List.range 0 (len - 1))
+                |> Tuple.mapFirst List.reverse
 
 
-sequence : List (Generator a) -> Generator (List a)
-sequence gens =
-    List.foldr (Random.map2 (::)) (Random.constant []) gens
+levelStep : List Int -> String -> Int -> ( List Person, Seed ) -> ( List Person, Seed )
+levelStep rest prefix index ( acc, seed ) =
+    let
+        id : String
+        id =
+            prefix ++ String.fromInt index
+
+        ( person, afterPerson ) =
+            Random.step personGenerator seed
+
+        ( subRows, afterSubRows ) =
+            level rest (id ++ ".") afterPerson
+    in
+    ( { person | id = id, subRows = SubRows subRows } :: acc, afterSubRows )
 
 
 personGenerator : Generator Person
