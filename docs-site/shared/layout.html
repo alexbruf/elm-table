@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{{title}} | elm-table</title>
+    <link rel="stylesheet" href="{{cssHref}}" />
+  </head>
+  <body>
+    <header class="site-header">
+      <a class="site-home" href="{{homeHref}}">elm-table</a>
+      <button class="nav-toggle" type="button" aria-label="Toggle navigation">Menu</button>
+      <nav class="site-links">
+        <a href="{{examplesHref}}">Examples</a>
+        <a href="https://elm-table-examples.pages.dev/">Live examples</a>
+        <a href="https://elm-table-demo.pages.dev/">Demo</a>
+        <a href="https://github.com/viewengine/elm-table">GitHub</a>
+      </nav>
+    </header>
+    <div class="layout">
+      <aside class="sidebar" id="sidebar">
+        {{sidebar}}
+      </aside>
+      <main>
+        <article class="prose">
+          <h1>{{title}}</h1>
+          {{content}}
+        </article>
+        <nav class="pager">{{pager}}</nav>
+      </main>
+      <aside class="toc">{{toc}}</aside>
+    </div>
+    <script>
+      (function () {
+        var b = document.querySelector(".nav-toggle");
+        var s = document.getElementById("sidebar");
+        if (b && s) b.addEventListener("click", function () { s.classList.toggle("is-open"); });
+      })();
+    </script>
+  </body>
+</html>

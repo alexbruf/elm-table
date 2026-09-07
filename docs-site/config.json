@@ -1,0 +1,88 @@
+{
+  "title": "elm-table",
+  "tagline": "Headless table state and row-model pipeline for Elm, a port of TanStack Table core.",
+  "examplesBase": "https://elm-table-examples.pages.dev",
+  "repo": "https://github.com/viewengine/elm-table",
+  "sections": [
+    {
+      "label": "Getting Started",
+      "children": [
+        { "label": "Overview", "to": "overview" },
+        { "label": "Installation", "to": "installation" },
+        { "label": "Quick Start", "to": "quick-start" },
+        { "label": "Migrating from TanStack", "to": "migrating" },
+        { "label": "Comparison with elm-sortable-table", "to": "comparison" }
+      ]
+    },
+    {
+      "label": "Core Guides",
+      "children": [
+        { "label": "Features", "to": "guide/features" },
+        { "label": "Data", "to": "guide/data" },
+        { "label": "Client-Side vs Server-Side", "to": "guide/client-side-vs-server-side" },
+        { "label": "Column Definitions", "to": "guide/column-defs" },
+        { "label": "Config and State", "to": "guide/config-and-state" },
+        { "label": "Row Models", "to": "guide/row-models" },
+        { "label": "Rows", "to": "guide/rows" },
+        { "label": "Cells", "to": "guide/cells" },
+        { "label": "Header Groups", "to": "guide/header-groups" },
+        { "label": "Headers", "to": "guide/headers" },
+        { "label": "Columns", "to": "guide/columns" },
+        { "label": "Table State", "to": "guide/table-state" },
+        { "label": "Values", "to": "guide/values" }
+      ]
+    },
+    {
+      "label": "Feature Guides",
+      "children": [
+        { "label": "Cell Selection", "to": "guide/cell-selection" },
+        { "label": "Cell Spanning", "to": "guide/cell-spanning" },
+        { "label": "Column Ordering", "to": "guide/column-ordering" },
+        { "label": "Column Pinning", "to": "guide/column-pinning" },
+        { "label": "Column Sizing", "to": "guide/column-sizing" },
+        { "label": "Column Resizing", "to": "guide/column-resizing" },
+        { "label": "Column Visibility", "to": "guide/column-visibility" },
+        { "label": "Column Filtering", "to": "guide/column-filtering" },
+        { "label": "Global Filtering", "to": "guide/global-filtering" },
+        { "label": "Fuzzy Filtering", "to": "guide/fuzzy-filtering" },
+        { "label": "Faceting", "to": "guide/column-faceting" },
+        { "label": "Aggregation", "to": "guide/aggregation" },
+        { "label": "Grouping", "to": "guide/grouping" },
+        { "label": "Expanding", "to": "guide/expanding" },
+        { "label": "Pagination", "to": "guide/pagination" },
+        { "label": "Row Pinning", "to": "guide/row-pinning" },
+        { "label": "Row Selection", "to": "guide/row-selection" },
+        { "label": "Sorting", "to": "guide/sorting" },
+        { "label": "Virtualization", "to": "guide/virtualization" }
+      ]
+    },
+    {
+      "label": "API Reference",
+      "children": [
+        { "label": "Table API", "to": "reference/table-api" },
+        { "label": "Column API", "to": "reference/column-api" },
+        { "label": "Row API", "to": "reference/row-api" },
+        { "label": "Cell API", "to": "reference/cell-api" },
+        { "label": "Header API", "to": "reference/header-api" },
+        { "label": "Features API", "to": "reference/features-api" }
+      ]
+    },
+    {
+      "label": "Module Reference",
+      "generated": "modules",
+      "children": [
+        { "label": "Table", "to": "reference/module/Table", "module": "Table" },
+        { "label": "Table.Value", "to": "reference/module/Table-Value", "module": "Table.Value" },
+        { "label": "Table.SortFn", "to": "reference/module/Table-SortFn", "module": "Table.SortFn" },
+        { "label": "Table.FilterFn", "to": "reference/module/Table-FilterFn", "module": "Table.FilterFn" },
+        { "label": "Table.AggregationFn", "to": "reference/module/Table-AggregationFn", "module": "Table.AggregationFn" }
+      ]
+    },
+    {
+      "label": "Examples",
+      "children": [
+        { "label": "All Examples", "to": "examples" }
+      ]
+    }
+  ]
+}
