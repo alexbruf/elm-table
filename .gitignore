@@ -14,3 +14,9 @@ bench/elm-stuff/
 review/elm-stuff/
 *.log
 bench/elm-bench.js
+examples-site/dist/
+examples-site/elm-stuff/
+docs-site/dist/
+docs-site/elm-stuff/
+docs-site/snippets/elm-stuff/
+docs-site/node_modules/

@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{title}} — elm-table examples</title>
+<meta name="description" content="{{description}}">
+<style>
+{{css}}
+</style>
+</head>
+<body>
+<header class="site-header">
+  <a class="site-home" href="../">elm-table examples</a>
+  <nav class="site-links">
+    <a href="https://elm-table-docs.pages.dev/">Docs</a>
+    <a href="https://elm-table-demo.pages.dev/">Demo</a>
+    <a href="https://github.com/viewengine/elm-table">GitHub</a>
+  </nav>
+</header>
+<main class="example">
+  <h1>{{title}}</h1>
+  <p class="lede">{{description}} Ports <a href="{{tanstackUrl}}">{{tanstackPath}}</a> from TanStack Table.</p>
+  <div class="tabs" role="tablist">
+    <button class="tab is-active" data-tab="demo" role="tab">Demo</button>
+    <button class="tab" data-tab="source" role="tab">Source</button>
+  </div>
+  <section class="panel is-active" data-panel="demo">
+    <div id="app"></div>
+  </section>
+  <section class="panel" data-panel="source">
+    {{source}}
+  </section>
+</main>
+<script src="elm.js"></script>
+<script>
+  Elm.{{module}}.init({ node: document.getElementById("app"){{initFlags}} });
+  for (const tab of document.querySelectorAll(".tab")) {
+    tab.addEventListener("click", () => {
+      for (const t of document.querySelectorAll(".tab")) t.classList.toggle("is-active", t === tab);
+      for (const p of document.querySelectorAll(".panel")) p.classList.toggle("is-active", p.dataset.panel === tab.dataset.tab);
+    });
+  }
+</script>
+</body>
+</html>

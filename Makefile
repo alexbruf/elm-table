@@ -1,4 +1,4 @@
-.PHONY: check test format format-check review docs bench demo deploy clean example
+.PHONY: check test format format-check review docs bench demo deploy clean example examples-site docs-site
 
 check: format-check review test
 
@@ -31,3 +31,9 @@ clean:
 
 example:
 	cd examples && elm make src/Main.elm --output=/dev/null
+
+examples-site:
+	$(MAKE) -C examples-site dist
+
+docs-site:
+	$(MAKE) -C docs-site dist
