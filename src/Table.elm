@@ -527,13 +527,58 @@ that has no builder. Later versions of this package may add fields, which is
 a breaking change for code that pattern matches on the record but not for
 record update.
 
+Fields, with the defaults [`config`](#config) sets:
+
+  - `columns : List (Column row)`
+  - `getRowId : Maybe (row -> Int -> Maybe String -> String)`, `Nothing` (index paths)
+  - `getSubRows : row -> List row`, none
+  - `manualSorting`, `manualFiltering`, `manualGrouping`, `manualExpanding`,
+    `manualPagination : Bool`, all `False`; `True` makes that stage return its input
+  - `enableSorting`, `enableMultiSort`, `enableSortingRemoval`,
+    `enableMultiRemove : Bool`, all `True`; `maxMultiSortColCount : Int`, unlimited;
+    `sortDescFirst : Maybe Bool`, `Nothing` (automatic per column)
+  - `enableFilters`, `enableColumnFilters`, `enableGlobalFilter : Bool`, all `True`;
+    `getColumnCanGlobalFilter : Maybe (Column row -> Bool)`, `Nothing` (strings and
+    numbers); `filterFromLeafRows : Bool`, `False`; `maxLeafRowFilterDepth : Int`,
+    `100`; `globalFilterFn : Maybe FilterFn`, `Nothing` (automatic)
+  - `enableGrouping : Bool`, `True`; `groupedColumnMode : GroupedColumnMode`,
+    [`groupedColumnsReorder`](#groupedColumnsReorder)
+  - `enableExpanding : Bool`, `True`; `getRowCanExpand`,
+    `getIsRowExpanded : Maybe (Row row -> Bool)`, `Nothing`;
+    `paginateExpandedRows : Bool`, `True`
+  - `pageCount`, `rowCount : Maybe Int`, `Nothing` (manual pagination only)
+  - `enableRowSelection`, `enableMultiRowSelection`, `enableSubRowSelection`,
+    `enableRowPinning : Row row -> Bool`, all `always True`;
+    `keepPinnedRows : Bool`, `True`
+  - `enableColumnPinning`, `enableHiding : Bool`, `True`;
+    `defaultColumn : SizeDefaults`, size 150, min 20, max unlimited
+  - `enableCellSpanning`, `enableCellSelection`, `enableCellRangeSelection`,
+    `enableMultiCellRangeSelection : Bool`, all `True`;
+    `cellSelectionFilter : Maybe (Cell -> Bool)`, `Nothing`
+
 -}
 type alias Config row =
     Types.Config row
 
 
 {-| Every state slice the pipeline reads. Start from
-[`initialState`](#initialState) and update it yourself.
+[`initialState`](#initialState) and update it yourself, directly or through
+the transition functions in this module.
+
+  - `sorting : List SortColumn`, in priority order
+  - `columnFilters : List ColumnFilter`
+  - `globalFilter : Value`, `Null` for none
+  - `grouping : List String`, column ids in grouping order
+  - `expanded : Expanded`
+  - `rowSelection : Set String`, selected row ids
+  - `pagination : Pagination`
+  - `columnOrder : List String`, empty for definition order
+  - `columnVisibility : Dict String Bool`, missing means visible
+  - `columnPinning : ColumnPinning`
+  - `columnSizing : Dict String Float`, missing means the column's own size
+  - `rowPinning : RowPinning`
+  - `cellSelection : List CellSelectionRange`
+
 -}
 type alias State =
     Types.State
@@ -1201,7 +1246,9 @@ findRow =
     Row.findRow
 
 
-{-| The deepest row depth in a row model. A flat model is `0`.
+{-| The deepest row depth in a row model, counting sub-rows and group rows.
+A flat model is `0`; one level of sub-rows makes it `1`. Useful for sizing
+indentation or the header checkbox of an expanding table.
 -}
 maxSubRowDepth : RowModel row -> Int
 maxSubRowDepth =
@@ -1419,16 +1466,21 @@ paginatedRowModel cfg state model =
 -- FACETING
 
 
-{-| Every distinct value of one column with the number of rows that carry it.
-The body lands in phase 3.
+{-| Every distinct value of one column with the number of rows that carry it,
+in first-seen order. Pass the pre-filtered row model (usually the core row
+model); the count is taken over [`facetedRowModel`](#facetedRowModel), which
+applies every filter except this column's own. `List` cells contribute each
+item.
 -}
 facetedUniqueValues : Config row -> State -> RowModel row -> String -> List ( Value, Int )
 facetedUniqueValues =
     Faceting.facetedUniqueValues
 
 
-{-| The smallest and largest numeric value of one column. The body lands in
-phase 3.
+{-| The smallest and largest `Number` value of one column, or `Nothing` when
+it has none. Pass the pre-filtered row model; like
+[`facetedUniqueValues`](#facetedUniqueValues) it looks through
+[`facetedRowModel`](#facetedRowModel).
 -}
 facetedMinMax : Config row -> State -> RowModel row -> String -> Maybe ( Float, Float )
 facetedMinMax =
@@ -1534,6 +1586,11 @@ shouldAutoRemoveFilter =
 {-| Set one column's filter value: replaced in place when the column already
 has one, appended otherwise, and removed when
 [`shouldAutoRemoveFilter`](#shouldAutoRemoveFilter) says the value is blank.
+
+Pass the core row model: a column without an explicit filter function picks
+its automatic one from the first values, and that choice decides the
+auto-remove rule.
+
 -}
 setColumnFilter : Config row -> RowModel row -> String -> Value -> State -> State
 setColumnFilter =
@@ -1541,7 +1598,8 @@ setColumnFilter =
 
 
 {-| Replace `State.columnFilters` wholesale, dropping the entries of known
-columns whose value should auto-remove.
+columns whose value should auto-remove. Pass the core row model, as for
+[`setColumnFilter`](#setColumnFilter).
 -}
 setColumnFilters : Config row -> RowModel row -> List ColumnFilter -> State -> State
 setColumnFilters =
@@ -1719,6 +1777,10 @@ direction, or remove it.
 `multi = True` asks to add to the existing sort rather than replace it, which
 happens only when [`getCanMultiSort`](#getCanMultiSort) allows it;
 `Config.maxMultiSortColCount` caps how many columns a multi-sort keeps.
+
+The row model is the pre-sorted one (the grouped row model, or the core
+row model when nothing is grouped or filtered): the first sort direction of
+a column without `sortDescFirst` depends on its values.
 
 -}
 toggleSort : Config row -> RowModel row -> String -> { desc : Maybe Bool, multi : Bool } -> State -> State
@@ -2072,8 +2134,12 @@ aggregationValue =
 
 
 {-| Aggregate one column over a chosen row list and depth, TanStack's
-`column.getAggregationValue({ rows, maxDepth })`. The row model is only there
-to resolve an automatic aggregation function.
+`column.getAggregationValue({ rows, maxDepth })`. Use it for footers and
+summaries that the grouped row model does not produce, for example the total
+of a column over every filtered row. The row model is only there to resolve
+an automatic aggregation function from the column's values; pass the core or
+filtered model. `maxDepth` stops the descent into sub-rows; `Nothing` means
+the column's own `maxAggregationDepth`.
 -}
 aggregationValueOf :
     Config row
@@ -2136,7 +2202,10 @@ getCanSomeRowsExpand =
     Expanding.getCanSomeRowsExpand
 
 
-{-| Is any row expanded? [`expandAll`](#expandAll) counts.
+{-| Is any row expanded? `True` for [`expandAll`](#expandAll) and for a
+non-empty [`expandedIds`](#expandedIds) set; it does not check that the ids
+still exist in the data, which is what TanStack's `getIsSomeRowsExpanded`
+does too.
 -}
 getIsSomeRowsExpanded : State -> Bool
 getIsSomeRowsExpanded =
@@ -2163,7 +2232,9 @@ cannot expand and any request that matches the current state are no-ops;
 collapsing always applies, so a stale id can be cleaned up.
 
 The row model materialises [`expandAll`](#expandAll) into the ids of the rows
-that can expand before the change lands.
+that can expand before the change lands. Pass the pre-expanded row model
+(the sorted row model, or whatever [`preExpandedRowModel`](#preExpandedRowModel)
+gives you), so group rows are included when grouping is on.
 
 -}
 toggleExpanded : Config row -> RowModel row -> Row row -> Maybe Bool -> State -> State
@@ -3035,6 +3106,11 @@ selectedRowModel =
 
 
 {-| Pin one row to an edge, or unpin it with [`rowUnpinned`](#rowUnpinned).
+Pinning removes the row id from the other edge first, so a row is never in
+both lists. Whether pinned rows are drawn from the whole data set or only
+the current page is `Config.keepPinnedRows`, read by [`topRows`](#topRows)
+and [`bottomRows`](#bottomRows). Use [`pinRowWith`](#pinRowWith) to pin a
+row's parents or children along with it.
 -}
 pinRow : RowPinPosition -> Row row -> State -> State
 pinRow position row state =
@@ -3426,7 +3502,9 @@ setCellSelection =
     CellSelection.setCellSelection
 
 
-{-| Drop every range. This is TanStack's `resetCellSelection(table, true)`.
+{-| Drop every range. This is TanStack's `resetCellSelection(table, true)`;
+there is no separate `resetCellSelection` here because the feature default
+is the empty list.
 -}
 clearCellSelection : State -> State
 clearCellSelection =
