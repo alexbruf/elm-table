@@ -184,6 +184,21 @@ Running log for the Elm port of TanStack Table core. See `SPEC.md` for the plan.
   `deploy.sh` takes `CLOUDFLARE_ACCOUNT_ID` from the environment or the
   repo env file.
 
+### API gap pass
+
+- Merged. Filter meta (`Row.columnFilters`, `Row.columnFiltersMeta`,
+  `rowFilterMeta`, `withCustomFilterMeta`, `FilterFn.withMeta`,
+  `taggedRowModel`), keyed aggregations (`withAggregationFns`,
+  `aggregationResults`, `aggregationValueById`), `withGetAggregationValue`
+  with `Config.manualAggregation`, `aggregationFnWithContext` with
+  `AggregationContext`, and `autoReset` with five `Config` flags (a pure
+  helper an app calls in `update` with the previous and next state).
+- Tests: the 10 "needs API" cases re-homed; `autoReset.test.ts` (out of
+  scope in SPEC as instance behaviour) ported 32 of 34. In-scope totals:
+  1,092 ported / 45 excluded of 1,137 (4.0%). See `reports/api-gaps.md`.
+- Bench unchanged within noise: meta dictionaries are only built when a
+  column has a meta-producing filter.
+
 ## Performance (merged tree, `make bench`, node 24, `--optimize`, 7 runs)
 
 | case | shape | min | median | target |
