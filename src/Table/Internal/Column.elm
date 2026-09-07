@@ -26,7 +26,10 @@ module Table.Internal.Column exposing
     , size
     , visibleLeafColumns
     , withAggregationFn
+    , withAggregationFns
+    , withContextAggregationFn
     , withCustomFilter
+    , withCustomFilterMeta
     , withCustomSort
     , withEnableCellSelection
     , withEnableCellSpanning
@@ -39,6 +42,7 @@ module Table.Internal.Column exposing
     , withEnableSorting
     , withFilterFn
     , withFooter
+    , withGetAggregationValue
     , withGetGroupingValue
     , withGetUniqueValues
     , withHeader
@@ -66,7 +70,7 @@ Ports `core/columns/constructColumn.ts` and
 import Dict exposing (Dict)
 import Table.AggregationFn exposing (AggregationFn)
 import Table.FilterFn exposing (FilterFn)
-import Table.Internal.Types exposing (Column(..), ColumnFields, Config, GroupedColumnMode(..), Row, RowSpanContext, SortUndefined, SpanRows(..), State)
+import Table.Internal.Types exposing (AggregationContext, Column(..), ColumnFields, Config, ContextAggregationFn, GroupedColumnMode(..), Row, RowSpanContext, SortUndefined, SpanRows(..), State)
 import Table.SortFn exposing (SortFn)
 import Table.Value exposing (Value)
 
@@ -141,6 +145,10 @@ emptyFields columnId =
     , spanColumns = Nothing
     , spanRows = Nothing
     , enableCellSelection = True
+    , customFilterMeta = Nothing
+    , aggregationFns = Nothing
+    , contextAggregationFn = Nothing
+    , getAggregationValue = Nothing
     }
 
 
@@ -245,6 +253,14 @@ withCustomFilter fn =
     update (\f -> { f | customFilter = Just fn })
 
 
+{-| Filter this column with a predicate on whole rows that also produces the
+meta the filtered row model records for the row.
+-}
+withCustomFilterMeta : (Row row -> Value -> ( Bool, Maybe Value )) -> Column row -> Column row
+withCustomFilterMeta fn =
+    update (\f -> { f | customFilterMeta = Just fn })
+
+
 {-| Allow or forbid a column filter on this column.
 -}
 withEnableColumnFilter : Bool -> Column row -> Column row
@@ -264,6 +280,30 @@ withEnableGlobalFilter flag =
 withAggregationFn : AggregationFn -> Column row -> Column row
 withAggregationFn fn =
     update (\f -> { f | aggregationFn = Just fn })
+
+
+{-| Aggregate this column with several aggregation functions at once, each
+under its own key. Ports the list form of `aggregationFn`.
+-}
+withAggregationFns : List ( String, AggregationFn ) -> Column row -> Column row
+withAggregationFns entries =
+    update (\f -> { f | aggregationFns = Just entries })
+
+
+{-| Aggregate this column with a function that reads the whole
+`AggregationContext`.
+-}
+withContextAggregationFn : ContextAggregationFn row -> Column row -> Column row
+withContextAggregationFn fn =
+    update (\f -> { f | contextAggregationFn = Just fn })
+
+
+{-| Supply this column's aggregation value instead of computing it. Ports the
+`getAggregationValue` column option.
+-}
+withGetAggregationValue : (AggregationContext row -> Value) -> Column row -> Column row
+withGetAggregationValue fn =
+    update (\f -> { f | getAggregationValue = Just fn })
 
 
 {-| Read the value this column groups by, when it differs from the accessor.

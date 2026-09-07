@@ -865,8 +865,8 @@ handlerSuite =
 
 
 {-| `autoResetCellSelection` is a scheduled side effect of a `data` swap in
-TanStack. This port is stateless: the caller owns both the data and the state,
-so each case is ported as the caller performing the same reset.
+TanStack. There is no scheduler here, so the reset it schedules is
+`Table.autoReset` with `dataChanged = True`, which the caller runs in `update`.
 -}
 autoResetSuite : Test
 autoResetSuite =
@@ -874,10 +874,13 @@ autoResetSuite =
         newRows : Table.SelectionRows TestRow
         newRows =
             rowsOf cfg base (makeData 4)
+
+        afterDataChange : Table.Config TestRow -> Table.State -> Table.State
+        afterDataChange config state =
+            Table.autoReset config { previous = state, next = state, dataChanged = True }
     in
     describe "autoResetCellSelection"
-        [ -- adapted: the reset a data change schedules is `clearCellSelection`.
-          test "clears ranges when data changes" <|
+        [ test "clears ranges when data changes" <|
             \_ ->
                 let
                     selected : Table.State
@@ -886,7 +889,7 @@ autoResetSuite =
                 in
                 Expect.equal
                     { before = Table.selectedCellCount cfg selected rows
-                    , after = (Table.clearCellSelection selected).cellSelection
+                    , after = (afterDataChange cfg selected).cellSelection
                     }
                     { before = 4, after = [] }
 
@@ -917,28 +920,36 @@ autoResetSuite =
                 in
                 Table.selectedCellCount cfg selected (rowsOf cfg selected (makeData 4))
                     |> Expect.equal 4
-
-        -- adapted: `autoResetAll` is an option precedence rule with no
-        -- counterpart; the asserted half is that one range survives.
         , test "is overridden by autoResetAll" <|
             \_ ->
-                Table.selectCellRange (rangeOf "r0" "a" "r1" "b") base
-                    |> .cellSelection
+                let
+                    selected : Table.State
+                    selected =
+                        Table.selectCellRange (rangeOf "r0" "a" "r1" "b") base
+
+                    kept : Table.Config TestRow
+                    kept =
+                        cfg
+                            |> Table.withAutoResetCellSelection True
+                            |> Table.withAutoResetAll False
+                in
+                (afterDataChange kept selected).cellSelection
                     |> List.length
                     |> Expect.equal 1
-
-        -- adapted: with no auto-reset the selection outlives the data change,
-        -- which here is a second row model built from the new list.
         , test "can be disabled" <|
             \_ ->
                 let
                     selected : Table.State
                     selected =
                         Table.selectCellRange (rangeOf "r0" "a" "r1" "b") base
+
+                    disabled : Table.State
+                    disabled =
+                        afterDataChange (Table.withAutoResetCellSelection False cfg) selected
                 in
                 Expect.equal
-                    { ranges = selected.cellSelection
-                    , count = Table.selectedCellCount cfg selected newRows
+                    { ranges = disabled.cellSelection
+                    , count = Table.selectedCellCount cfg disabled newRows
                     }
                     { ranges = [ rangeOf "r0" "a" "r1" "b" ], count = 4 }
         ]

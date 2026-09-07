@@ -3,17 +3,23 @@ module AggregationTest exposing (suite)
 {-| Ports
 `tests/implementation/features/row-aggregation/rowAggregationFeature.test.ts`.
 
-`Table.AggregationFn` is a single fold plus an optional merge, so TanStack's
-keyed `aggregationFn: ['sum', 'mean', …]` option has no counterpart. The
-cases that are only about the keyed form are excluded in
-`reports/phase-4.md`; the mixed ones keep their scalar half with a comment.
+`Table.AggregationFn` is a single fold plus an optional merge. TanStack's
+keyed `aggregationFn: ['sum', 'mean', …]` option is `Table.withAggregationFns`
+and produces a `Dict` rather than a `Value`, read back with
+`Table.aggregationResults` and `Table.rowAggregationResults`; its
+`AggregationFnDef.aggregate(context)` form is
+`Table.aggregationFnWithContext`. `columnDef.getAggregationValue` and
+`manualAggregation` are `Table.withGetAggregationValue` and
+`Table.withManualAggregation`. Nothing in this file is excluded any more.
 
-The five cases that need `columnDef.getAggregationValue`, `manualAggregation`,
-keyed aggregations or the `AggregationContext` object stay excluded, with the
-exact API each one wants listed under "Needs API" in `reports/rehoming.md`.
+The cases that used to substitute a scalar column for a keyed one and still
+do say so at the case; the keyed form itself is asserted by "aggregates
+scalar and keyed root values without grouping" and by "computes nested
+scalar/keyed values and aggregates deeper grouping columns".
 
 -}
 
+import Dict
 import Expect
 import Table
 import Table.AggregationFn as AggregationFn exposing (AggregationFn)
@@ -96,16 +102,25 @@ nodeConfig columns =
 rootSuite : Test
 rootSuite =
     describe "rowAggregationFeature root values"
-        [ test "aggregates scalar and keyed root values without grouping" <|
+        [ -- adapted: `getAggregationFns().map(fn => fn.id)` becomes the keys of
+          -- the keyed result, which a `Dict` orders alphabetically; the three
+          -- ids of the vitest case are already in that order.
+          test "aggregates scalar and keyed root values without grouping" <|
             \_ ->
-                -- The keyed (`aggregationFn: [...]`) half of this case has no
-                -- counterpart; the scalar half is asserted here.
                 let
                     cfg : Table.Config AmountRow
                     cfg =
                         Table.config
                             [ Table.column "scalar" .amount
                                 |> Table.withAggregationFn AggregationFn.sum
+                            , Table.column "multiple" .amount
+                                |> Table.withAggregationFns
+                                    [ ( "count", AggregationFn.count )
+                                    , ( "mean", AggregationFn.mean )
+                                    , ( "range", AggregationFn.extent )
+                                    ]
+                            , Table.column "empty" .amount
+                                |> Table.withAggregationFns []
                             ]
 
                     data : List AmountRow
@@ -123,6 +138,9 @@ rootSuite =
                     { total = Table.aggregationValue cfg model "scalar"
                     , empty =
                         Table.aggregationValueOf cfg model "scalar" { maxDepth = 0, rows = [] }
+                    , multiple = Dict.toList (Table.aggregationResults cfg model "multiple")
+                    , multipleIds = Dict.keys (Table.aggregationResults cfg model "multiple")
+                    , emptyKeyed = Dict.toList (Table.aggregationResults cfg model "empty")
                     , firstCellAggregated =
                         List.head model.rows
                             |> Maybe.map
@@ -130,6 +148,13 @@ rootSuite =
                     }
                     { total = Value.Number 30
                     , empty = Value.Number 0
+                    , multiple =
+                        [ ( "count", Value.Number 3 )
+                        , ( "mean", Value.Number 15 )
+                        , ( "range", Value.List [ Value.Number 10, Value.Number 20 ] )
+                        ]
+                    , multipleIds = [ "count", "mean", "range" ]
+                    , emptyKeyed = []
                     , firstCellAggregated = Just False
                     }
         , test "infers auto aggregation from the first core row value" <|
@@ -378,6 +403,123 @@ rootSuite =
                     , overlapping =
                         Value.List [ Value.String "a00", Value.String "a01" ]
                     }
+        , -- adapted: a provider always handles the request here, since
+          -- returning `Value.Null` is TanStack's handled `{ value: undefined }`
+          -- and there is no third answer for "not handled". The declining half
+          -- of the vitest resolver becomes a column with no provider at all,
+          -- which is the local fallback it falls through to.
+          test "uses handled column values and configurable local fallback" <|
+            \_ ->
+                let
+                    resolver : Table.AggregationContext AmountRow -> Value
+                    resolver ctx =
+                        if List.isEmpty ctx.rows then
+                            Value.Null
+
+                        else
+                            Value.Number 99
+
+                    columns : Table.Config AmountRow
+                    columns =
+                        Table.config
+                            [ Table.column "handled" .amount
+                                |> Table.withAggregationFn AggregationFn.sum
+                                |> Table.withGetAggregationValue resolver
+                            , Table.column "local" .amount
+                                |> Table.withAggregationFn AggregationFn.sum
+                            , Table.column "handledUndefined" .amount
+                                |> Table.withAggregationFn AggregationFn.sum
+                                |> Table.withGetAggregationValue (\_ -> Value.Null)
+                            ]
+
+                    data : List AmountRow
+                    data =
+                        [ AmountRow (Value.Number 1), AmountRow (Value.Number 2) ]
+
+                    model : Table.RowModel AmountRow
+                    model =
+                        core columns data
+
+                    manual : Table.Config AmountRow
+                    manual =
+                        Table.withManualAggregation True columns
+                in
+                Expect.equal
+                    { handledExplicitRows =
+                        Table.aggregationValueOf columns model "handled" { maxDepth = 0, rows = model.rows }
+                    , localFallback = Table.aggregationValue columns model "local"
+                    , manualLocal = Table.aggregationValue manual model "local"
+                    , manualHandled = Table.aggregationValue manual model "handled"
+                    , handledUndefined = Table.aggregationValue columns model "handledUndefined"
+                    }
+                    { handledExplicitRows = Value.Number 99
+                    , localFallback = Value.Number 3
+                    , manualLocal = Value.Null
+                    , manualHandled = Value.Number 99
+                    , handledUndefined = Value.Null
+                    }
+        , -- adapted: `Config.defaultColumn` is sizing only here, so the shared
+          -- provider is one function attached to each column rather than one
+          -- default the columns inherit; it still branches on the column it is
+          -- asked about, which is the point of the case.
+          test "supports a shared aggregation value provider through defaultColumn" <|
+            \_ ->
+                let
+                    shared : Table.AggregationContext AmountRow -> Value
+                    shared ctx =
+                        if ctx.columnId == "amount" then
+                            Value.Number 42
+
+                        else
+                            Value.Null
+
+                    cfg : Table.Config AmountRow
+                    cfg =
+                        Table.config
+                            [ Table.column "amount" .amount
+                                |> Table.withAggregationFn AggregationFn.sum
+                                |> Table.withGetAggregationValue shared
+                            , Table.column "other" .amount
+                                |> Table.withAggregationFn AggregationFn.sum
+                                |> Table.withGetAggregationValue shared
+                            ]
+
+                    model : Table.RowModel AmountRow
+                    model =
+                        core cfg [ AmountRow (Value.Number 1) ]
+                in
+                Expect.equal
+                    ( Table.aggregationValue cfg model "amount"
+                    , Table.aggregationValue cfg model "other"
+                    )
+                    ( Value.Number 42, Value.Null )
+        , -- adapted: `withAggregationFns` takes the functions themselves, so
+          -- there is no unregistered `'missing'` name to warn about and no
+          -- `console.warn` to spy on; the duplicated id is the half that has a
+          -- counterpart, and it keeps its key with `Null` for `undefined`.
+          test "warns and preserves undefined keys for invalid multi configurations" <|
+            \_ ->
+                let
+                    cfg : Table.Config AmountRow
+                    cfg =
+                        Table.config
+                            [ Table.column "amount" .amount
+                                |> Table.withAggregationFns
+                                    [ ( "sum", AggregationFn.sum )
+                                    , ( "sum", AggregationFn.sum )
+                                    , ( "kept", AggregationFn.count )
+                                    ]
+                            ]
+
+                    model : Table.RowModel AmountRow
+                    model =
+                        core cfg [ AmountRow (Value.Number 1) ]
+                in
+                Dict.toList (Table.aggregationResults cfg model "amount")
+                    |> Expect.equal
+                        [ ( "kept", Value.Number 1 )
+                        , ( "sum", Value.Null )
+                        ]
         ]
 
 
@@ -526,8 +668,7 @@ groupingSuite =
                     |> Expect.equal (Just Value.Null)
         , test "computes nested scalar/keyed values and aggregates deeper grouping columns" <|
             \_ ->
-                -- The keyed `amount` column becomes a scalar `sum` one and the
-                -- `aggregatedCell` assertion is rendering, which is out of
+                -- The `aggregatedCell` assertion is rendering, which is out of
                 -- scope; the rest of the case is here.
                 let
                     cfg : Table.Config Order
@@ -537,7 +678,11 @@ groupingSuite =
                             , Table.column "level" (.level >> Value.Number)
                                 |> Table.withAggregationFn AggregationFn.sum
                             , Table.column "amount" (.amount >> Value.Number)
-                                |> Table.withAggregationFn AggregationFn.sum
+                                |> Table.withAggregationFns
+                                    [ ( "sum", AggregationFn.sum )
+                                    , ( "mean", AggregationFn.mean )
+                                    , ( "extent", AggregationFn.extent )
+                                    ]
                             , Table.column "soldAt" (.soldAt >> Value.Date)
                                 |> Table.withAggregationFn AggregationFn.extent
                             ]
@@ -578,7 +723,12 @@ groupingSuite =
                 Expect.equal
                     { regionLevel = valueOf region "level"
                     , levelLevel = valueOf level "level"
-                    , regionAmount = valueOf region "amount"
+                    , regionAmount =
+                        region
+                            |> Maybe.map (\r -> Dict.toList (Table.rowAggregationResults r "amount"))
+                            |> Maybe.withDefault []
+                    , regionAmountSum =
+                        Maybe.andThen (\r -> Table.aggregationValueById r "amount" "sum") region
                     , regionSoldAt = valueOf region "soldAt"
                     , amountAggregated =
                         region
@@ -591,7 +741,12 @@ groupingSuite =
                     }
                     { regionLevel = Value.Number 4
                     , levelLevel = Value.Number 1
-                    , regionAmount = Value.Number 130
+                    , regionAmount =
+                        [ ( "extent", Value.List [ Value.Number 10, Value.Number 100 ] )
+                        , ( "mean", Value.Number (130 / 3) )
+                        , ( "sum", Value.Number 130 )
+                        ]
+                    , regionAmountSum = Just (Value.Number 130)
                     , regionSoldAt = Value.List [ Value.Date (day 1), Value.Date (day 61) ]
                     , amountAggregated = Just True
                     , levelAggregated = Just False
@@ -738,6 +893,126 @@ groupingSuite =
                     , expanded = Value.Number 6
                     , deepest = Value.Number 3
                     }
+        , -- adapted: there is no spy on the aggregation, so the context is
+          -- asserted through what the aggregation returns: the sizes of `rows`
+          -- and `subRows` and the id and depth of `groupingRow`. `Nothing`
+          -- stands for TanStack omitting the `groupingRow` property and an
+          -- empty `subRows` for it omitting that one; `source` has no
+          -- counterpart and never existed here.
+          test "provides groupingRow only for grouped aggregation contexts" <|
+            \_ ->
+                let
+                    sized : Table.ContextAggregationFn Sale
+                    sized =
+                        Table.aggregationFnWithContext contextProbe
+
+                    cfg : Table.Config Sale
+                    cfg =
+                        saleConfig
+                            [ Table.column "region" (.region >> Value.String)
+                            , Table.column "amount" (.amount >> Value.Number)
+                                |> Table.withContextAggregationFn sized
+                            ]
+
+                    data : List Sale
+                    data =
+                        [ sale "a" "x" 1 [], sale "a" "x" 2 [] ]
+
+                    coreModel : Table.RowModel Sale
+                    coreModel =
+                        core cfg data
+
+                    groupingRow : Maybe (Table.Row Sale)
+                    groupingRow =
+                        List.head (groupSales cfg [ "region" ] data).rows
+                in
+                Expect.equal
+                    { root = Table.aggregationValue cfg coreModel "amount"
+                    , grouped = groupingRow |> Maybe.map (\row -> Table.getValue cfg row "amount")
+                    }
+                    { root = probe 2 0 "" -1
+                    , grouped = Just (probe 2 2 "region:a" 0)
+                    }
+        , -- adapted: same, with the counts the vitest reads off the two
+          -- recorded contexts returned as the aggregated value itself.
+          test "lets aggregate choose immediate sub-rows instead of terminal rows" <|
+            \_ ->
+                let
+                    childCount : Table.ContextAggregationFn Sale
+                    childCount =
+                        Table.aggregationFnWithContext
+                            (\ctx ->
+                                if List.isEmpty ctx.subRows then
+                                    Value.Number (toFloat (List.length ctx.rows))
+
+                                else
+                                    Value.Number (toFloat (List.length ctx.subRows))
+                            )
+
+                    cfg : Table.Config Sale
+                    cfg =
+                        saleConfig
+                            [ Table.column "region" (.region >> Value.String)
+                            , Table.column "team" (.team >> Value.String)
+                            , Table.column "amount" (.amount >> Value.Number)
+                                |> Table.withContextAggregationFn childCount
+                            , Table.column "context" (.amount >> Value.Number)
+                                |> Table.withContextAggregationFn
+                                    (Table.aggregationFnWithContext contextProbe)
+                            ]
+
+                    model : Table.RowModel Sale
+                    model =
+                        groupSales cfg
+                            [ "region", "team" ]
+                            [ sale "a" "x" 1 [], sale "a" "x" 2 [], sale "a" "y" 3 [] ]
+
+                    region : Maybe (Table.Row Sale)
+                    region =
+                        List.head model.rows
+
+                    team : Maybe (Table.Row Sale)
+                    team =
+                        region |> Maybe.andThen (Table.rowSubRows >> List.head)
+
+                    valueOf : Maybe (Table.Row Sale) -> String -> Maybe Value
+                    valueOf row columnId =
+                        Maybe.map (\r -> Table.getValue cfg r columnId) row
+                in
+                Expect.equal
+                    { teamAmount = valueOf team "amount"
+                    , regionAmount = valueOf region "amount"
+                    , teamContext = valueOf team "context"
+                    , regionContext = valueOf region "context"
+                    }
+                    { teamAmount = Just (Value.Number 2)
+                    , regionAmount = Just (Value.Number 2)
+                    , teamContext = Just (probe 2 2 "region:a>team:x" 1)
+                    , regionContext = Just (probe 3 2 "region:a" 0)
+                    }
+        ]
+
+
+{-| What the two `AggregationContext` cases read off the context: how many
+rows and immediate sub-rows it holds, and the id and depth of its grouping
+row. The empty id and the depth of `-1` stand for TanStack omitting the
+`groupingRow` property.
+-}
+contextProbe : Table.AggregationContext Sale -> Value
+contextProbe ctx =
+    probe (List.length ctx.rows)
+        (List.length ctx.subRows)
+        (Maybe.withDefault "" (Maybe.map Table.rowId ctx.groupingRow))
+        (Maybe.withDefault -1 (Maybe.map Table.rowDepth ctx.groupingRow))
+
+
+probe : Int -> Int -> String -> Int -> Value
+probe rowCount subRowCount groupingRowId groupingRowDepth =
+    Value.List
+        [ Value.Number (toFloat rowCount)
+        , Value.Number (toFloat subRowCount)
+        , Value.String groupingRowId
+        , Value.Number (toFloat groupingRowDepth)
         ]
 
 

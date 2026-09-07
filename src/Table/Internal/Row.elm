@@ -1,6 +1,11 @@
 module Table.Internal.Row exposing
     ( aggregatedValues
+    , aggregationResults
+    , aggregationValueById
+    , columnFilters
+    , columnFiltersMeta
     , depth
+    , filterMeta
     , findRow
     , flattenRows
     , getAllCells
@@ -105,6 +110,45 @@ leafRows (Row f) =
 aggregatedValues : Row row -> Dict String Value
 aggregatedValues (Row f) =
     f.aggregatedValues
+
+
+{-| The keyed aggregation results of a group row for one column, empty when
+the column has no `withAggregationFns`.
+-}
+aggregationResults : Row row -> String -> Dict String Value
+aggregationResults (Row f) columnId =
+    Dict.get columnId f.aggregationResults
+        |> Maybe.withDefault Dict.empty
+
+
+{-| One keyed aggregation result of a group row.
+-}
+aggregationValueById : Row row -> String -> String -> Maybe Value
+aggregationValueById row columnId aggregationId =
+    Dict.get aggregationId (aggregationResults row columnId)
+
+
+{-| Whether the row passed each column filter the filtered row model
+evaluated, keyed by column id plus `"__global__"` for the global filter.
+-}
+columnFilters : Row row -> Dict String Bool
+columnFilters (Row f) =
+    f.columnFilters
+
+
+{-| The meta each filter recorded for the row, keyed by the column id it was
+evaluated for.
+-}
+columnFiltersMeta : Row row -> Dict String Value
+columnFiltersMeta (Row f) =
+    f.columnFiltersMeta
+
+
+{-| The meta one column's filter recorded for the row.
+-}
+filterMeta : Row row -> String -> Maybe Value
+filterMeta (Row f) columnId =
+    Dict.get columnId f.columnFiltersMeta
 
 
 {-| Read one cell value. Aggregated values win, then the column accessor.

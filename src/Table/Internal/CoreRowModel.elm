@@ -65,4 +65,7 @@ buildRow cfg depth parentId index originalRow =
         , groupingValue = Null
         , leafRows = []
         , aggregatedValues = Dict.empty
+        , aggregationResults = Dict.empty
+        , columnFilters = Dict.empty
+        , columnFiltersMeta = Dict.empty
         }

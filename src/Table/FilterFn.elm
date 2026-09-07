@@ -6,8 +6,8 @@ module Table.FilterFn exposing
     , greaterThan, greaterThanOrEqualTo, lessThan, lessThanOrEqualTo
     , between, betweenInclusive, inNumberRange, inDateRange
     , arrHas, arrIncludes, arrIncludesAll, arrIncludesSome
-    , custom, withResolveFilterValue, withResolveDataValue, withAutoRemove
-    , filter, resolveFilterValue, resolveDataValue, autoRemove
+    , custom, withResolveFilterValue, withResolveDataValue, withAutoRemove, withMeta
+    , filter, resolveFilterValue, resolveDataValue, autoRemove, meta
     , toDateTimestamp
     )
 
@@ -22,6 +22,10 @@ three helpers that TanStack attaches to every filter fn:
     ([`filter`](#filter) does this).
   - `autoRemove` says when a filter value is blank enough that the filter
     should be dropped from state.
+  - `meta`, when the filter fn has one, produces the value the filtered row
+    model records for the row under
+    [`Table.rowColumnFiltersMeta`](Table#rowColumnFiltersMeta). It is
+    TanStack's `addMeta` callback turned into a return value.
 
 
 # Type
@@ -61,12 +65,12 @@ three helpers that TanStack attaches to every filter fn:
 
 # Building your own
 
-@docs custom, withResolveFilterValue, withResolveDataValue, withAutoRemove
+@docs custom, withResolveFilterValue, withResolveDataValue, withAutoRemove, withMeta
 
 
 # Applying
 
-@docs filter, resolveFilterValue, resolveDataValue, autoRemove
+@docs filter, resolveFilterValue, resolveDataValue, autoRemove, meta
 
 
 # Dates
@@ -87,6 +91,7 @@ type FilterFn
         , resolveFilterValue : Value -> Value
         , resolveDataValue : Value -> Value
         , autoRemove : Value -> Bool
+        , meta : Maybe (Value -> Value -> Maybe Value)
         }
 
 
@@ -280,6 +285,7 @@ custom fn =
         , resolveFilterValue = identity
         , resolveDataValue = identity
         , autoRemove = isFalsy
+        , meta = Nothing
         }
 
 
@@ -302,6 +308,20 @@ withResolveDataValue resolver (FilterFn def) =
 withAutoRemove : (Value -> Bool) -> FilterFn -> FilterFn
 withAutoRemove predicate (FilterFn def) =
     FilterFn { def | autoRemove = predicate }
+
+
+{-| Give a filter fn the meta the filtered row model records for every row it
+tests, TanStack's `addMeta` callback.
+
+The function is handed the already resolved cell value and the already
+resolved filter value, the same two values [`filter`](#filter) compares, and
+`Nothing` records nothing for that row. This is how the fuzzy-filter example
+stores its match rank and then sorts by it.
+
+-}
+withMeta : (Value -> Value -> Maybe Value) -> FilterFn -> FilterFn
+withMeta producer (FilterFn def) =
+    FilterFn { def | meta = Just producer }
 
 
 {-| Test a raw cell value against an already resolved filter value. The
@@ -332,6 +352,15 @@ resolveDataValue (FilterFn def) =
 autoRemove : FilterFn -> Value -> Bool
 autoRemove (FilterFn def) =
     def.autoRemove
+
+
+{-| The filter fn's meta producer, when [`withMeta`](#withMeta) gave it one.
+`Nothing` is the common case and lets the filtered row model skip the work
+entirely.
+-}
+meta : FilterFn -> Maybe (Value -> Value -> Maybe Value)
+meta (FilterFn def) =
+    def.meta
 
 
 {-| `toDateTimestamp` from `filterFns.ts`: a `Date` gives its milliseconds,
