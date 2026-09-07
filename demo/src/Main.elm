@@ -1,6 +1,6 @@
 module Main exposing (main)
 
-{-| A keyword report on 5,000 generated rows, wired to `viewengine/elm-table`.
+{-| A keyword report on 5,000 generated rows, wired to `alexbruf/elm-table`.
 
 Every feature on the page reads and writes the package's `State`. The six row
 models come from one measured pipeline run per update, kept in the model so

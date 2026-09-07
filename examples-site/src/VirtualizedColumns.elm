@@ -177,9 +177,9 @@ sum of their widths.
 
 `bounds` holds one entry per column plus a last entry for the whole width, so
 `bounds[i]` is the same number
-[`getColumnStart`](https://package.elm-lang.org/packages/viewengine/elm-table/latest/Table#getColumnStart)
+[`getColumnStart`](https://package.elm-lang.org/packages/alexbruf/elm-table/latest/Table#getColumnStart)
 returns for column `i` and the last entry is
-[`totalSize`](https://package.elm-lang.org/packages/viewengine/elm-table/latest/Table#totalSize).
+[`totalSize`](https://package.elm-lang.org/packages/alexbruf/elm-table/latest/Table#totalSize).
 Summing them all at once means the search for the first visible column does
 not re-add a thousand widths on every frame.
 

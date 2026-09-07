@@ -1,6 +1,6 @@
 # elm-table
 
-Elm 0.19.1 package `viewengine/elm-table`: a headless port of TanStack Table core
+Elm 0.19.1 package `alexbruf/elm-table`: a headless port of TanStack Table core
 (`packages/table-core`). Pure functions only. No ports, no JS, no DOM. The package
 exposes data and state transitions; rendering is the user's job.
 

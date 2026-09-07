@@ -11,7 +11,7 @@ adds the first feature.
 ## Installation
 
 ```bash
-elm install viewengine/elm-table
+elm install alexbruf/elm-table
 ```
 
 ## Your first table

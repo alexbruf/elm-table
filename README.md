@@ -31,7 +31,7 @@ Demo: <https://elm-table-demo.pages.dev> (5,000 generated keyword rows; sort, fi
 ## Install
 
 ```
-elm install viewengine/elm-table
+elm install alexbruf/elm-table
 ```
 
 ## Example

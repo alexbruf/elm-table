@@ -4,7 +4,7 @@ Handoff plan for an autonomous agent. Scope is `packages/table-core` only. No fr
 
 ## Goal
 
-Publish an Elm 0.19.1 package `viewengine/elm-table` (working name) that reproduces TanStack Table's row-model pipeline and column state as pure functions, verified by ported tests from the TanStack repo.
+Publish an Elm 0.19.1 package `alexbruf/elm-table` (working name) that reproduces TanStack Table's row-model pipeline and column state as pure functions, verified by ported tests from the TanStack repo.
 
 ## Source
 

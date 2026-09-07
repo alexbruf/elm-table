@@ -1,6 +1,6 @@
 # Documentation site
 
-`docs-site/` is the documentation site for `viewengine/elm-table`, a static
+`docs-site/` is the documentation site for `alexbruf/elm-table`, a static
 site generated from Markdown by `docs-site/build.ts` (bun + `marked`) and
 deployed to Cloudflare Pages.
 

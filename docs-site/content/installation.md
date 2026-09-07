@@ -8,10 +8,10 @@ Before we dig into the API, let's get you set up.
 ## Install the package
 
 ```bash
-elm install viewengine/elm-table
+elm install alexbruf/elm-table
 ```
 
-That writes `viewengine/elm-table` into the `dependencies` of your
+That writes `alexbruf/elm-table` into the `dependencies` of your
 `elm.json`. There is nothing to install with `npm` or `bun`: the package is
 pure Elm, has no ports, and ships no JavaScript.
 

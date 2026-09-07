@@ -1,6 +1,6 @@
 # docs-site
 
-The documentation site for `viewengine/elm-table`, deployed to Cloudflare
+The documentation site for `alexbruf/elm-table`, deployed to Cloudflare
 Pages as <https://elm-table-docs.pages.dev>.
 
 It mirrors the [TanStack Table docs site](https://tanstack.com/table) in

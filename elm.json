@@ -1,6 +1,6 @@
 {
     "type": "package",
-    "name": "viewengine/elm-table",
+    "name": "alexbruf/elm-table",
     "summary": "Headless table state and row-model pipeline, a port of TanStack Table core",
     "license": "MIT",
     "version": "1.0.0",

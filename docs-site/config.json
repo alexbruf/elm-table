@@ -2,7 +2,7 @@
   "title": "elm-table",
   "tagline": "Headless table state and row-model pipeline for Elm, a port of TanStack Table core.",
   "examplesBase": "https://elm-table-examples.pages.dev",
-  "repo": "https://github.com/viewengine/elm-table",
+  "repo": "https://github.com/alexbruf/elm-table",
   "sections": [
     {
       "label": "Getting Started",

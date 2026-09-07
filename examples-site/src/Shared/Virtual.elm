@@ -78,9 +78,9 @@ fixed options scroll =
 `bounds` holds one more entry than there are items: the offset of item `i` is
 `bounds[i]`, and the last entry is the size of the whole list. For a table's
 columns that is a running sum of
-[`getColumnSize`](https://package.elm-lang.org/packages/viewengine/elm-table/latest/Table#getColumnSize),
+[`getColumnSize`](https://package.elm-lang.org/packages/alexbruf/elm-table/latest/Table#getColumnSize),
 ending at
-[`totalSize`](https://package.elm-lang.org/packages/viewengine/elm-table/latest/Table#totalSize).
+[`totalSize`](https://package.elm-lang.org/packages/alexbruf/elm-table/latest/Table#totalSize).
 
 -}
 variable :
