@@ -1,0 +1,13 @@
+/* The React example wraps its four panels into a grid on a wide viewport. */
+.example-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(420px, 1fr));
+  gap: 24px;
+}
+.example-panel {
+  min-width: 0;
+  overflow-x: auto;
+}
+.example-panel h2 {
+  margin-top: 0;
+}

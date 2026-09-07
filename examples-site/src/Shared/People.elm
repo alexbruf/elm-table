@@ -7,8 +7,9 @@ module Shared.People exposing
 {-| The Elm counterpart of `makeData.ts` in the TanStack examples: a
 deterministic `Person` generator driven by `elm/random`.
 
-    makeData 42 [ 1000 ]          -- 1000 flat rows
-    makeData 42 [ 100, 5, 3 ]     -- 100 rows, 5 sub-rows each, 3 sub-sub-rows each
+    makeData 42 [ 1000 ] -- 1000 flat rows
+
+    makeData 42 [ 100, 5, 3 ] -- 100 rows, 5 sub-rows each, 3 sub-sub-rows each
 
 Like the TypeScript, `lastName` and `visits` are missing about one time in
 ten so examples can show `Null` handling.
