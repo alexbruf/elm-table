@@ -229,14 +229,23 @@ file. Full per-case exclusion lists live in `reports/phase-N.md`.
 | `implementation/features/cell-selection/cellSelectionGeometry.test.ts` | 11 | 11 | 11 | 0 |
 | `implementation/features/cell-selection/cellSelectionRange.test.ts` | 23 | 23 | 23 | 0 |
 | `implementation/features/cell-selection/cellSelectionSpanAware.test.ts` | 16 | 16 | 16 | 0 |
+| **total (48 files)** | **1,137** | **1,084** | **1,084** | **53 (4.66%)** |
+
+The two files at 0% ported, `unit/core/table/constructTable.test.ts` and
+`unit/core/table/rowModelSlots.test.ts`, test table-instance construction and
+the feature/fn registry slots, which this port has no counterpart for (the
+same reason `tableAtoms` and `setStateSlice` are out of scope in `SPEC.md`).
+Every other in-scope file is ported at 75% or higher; 36 of 48 are at 100%.
+`elm-test` runs 1,092 tests (1,084 ported cases plus the phase 0 fixture
+tests and a few `it.each` variants).
 
 ### Re-homing pass
 
 Every excluded case whose vitest body still held a data-level assertion Elm can
 express was ported as an adapted test (the `it` name verbatim plus a one-line
-`-- adapted:` comment). 60 cases moved from excluded to ported, taking the
-totals to 1,082 ported and 55 excluded of 1,137 (4.8%), which meets `SPEC.md`
-"Definition of done" item 3. The per-case list, the adaptations, the remaining
+`-- adapted:` comment). 60 cases moved from excluded to ported; with the two
+default-header cases phase 7 re-homed, the totals are 1,084 ported and 53
+excluded of 1,137 (4.66%), which meets `SPEC.md` "Definition of done" item 3. The per-case list, the adaptations, the remaining
 exclusions grouped by reason and the "needs API" list are in
 `reports/rehoming.md`.
 
