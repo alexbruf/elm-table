@@ -37,6 +37,8 @@ can read the guide and watch the thing it describes in the same place.
 | [Column Pinning (Split)](https://elm-table-examples.pages.dev/column-pinning-split/) | Pinned regions rendered as three separate tables. | [Column Pinning](/guide/column-pinning) |
 | [Sticky Column Pinning](https://elm-table-examples.pages.dev/column-pinning-sticky/) | Pinned columns stay put with `position: sticky` while the rest scroll. | [Column Pinning](/guide/column-pinning) |
 | [Column Sizing](https://elm-table-examples.pages.dev/column-sizing/) | Column widths from state with min and max clamping. | [Column Sizing](/guide/column-sizing) |
+| [Column Resizing](https://elm-table-examples.pages.dev/column-resizing/) | Drag a header edge to resize a column, with onChange and onEnd modes and left-to-right or right-to-left direction. | [Column Resizing](/guide/column-resizing) |
+| [Performant Column Resizing](https://elm-table-examples.pages.dev/column-resizing-performant/) | Resize with the body rendered from CSS variables so only the header re-renders while dragging. | [Column Resizing](/guide/column-resizing) |
 | [Column Visibility](https://elm-table-examples.pages.dev/column-visibility/) | Show and hide columns with checkboxes. | [Column Visibility](/guide/column-visibility) |
 | [Expanding](https://elm-table-examples.pages.dev/expanding/) | Nested sub-rows with expand and collapse. | [Expanding](/guide/expanding) |
 | [Expanding Sub Components](https://elm-table-examples.pages.dev/sub-components/) | Expand a row to reveal arbitrary content instead of sub-rows. | [Expanding](/guide/expanding) |
@@ -53,6 +55,9 @@ can read the guide and watch the thing it describes in the same place.
 
 | Example | What it shows | Guide |
 | --- | --- | --- |
+| [Virtualized Rows](https://elm-table-examples.pages.dev/virtualized-rows/) | 50,000 sorted and filtered rows rendered through an Elm virtual list. | [Virtualization](/guide/virtualization) |
+| [Virtualized Columns](https://elm-table-examples.pages.dev/virtualized-columns/) | Wide tables: only the columns in view are rendered. | [Virtualization](/guide/virtualization) |
+| [Infinite Scrolling](https://elm-table-examples.pages.dev/virtualized-infinite-scrolling/) | Pages of rows fetched as you scroll, appended to the data and re-run through the pipeline. | [Virtualization](/guide/virtualization) |
 | [Realtime Trading](https://elm-table-examples.pages.dev/realtime-trading/) | Prices updating on a timer while sorting and filtering stay live. | [Data](/guide/data) |
 
 ## Not ported
@@ -64,9 +69,7 @@ counterpart.
 | --- | --- |
 | Basic (useAppTable), Basic (useLegacyTable), Basic (Subscribe), Basic (External Atoms) | Four ways to construct a React table instance. There is one way here: build a `Config` and hold a `State`. |
 | Composable Tables, Custom Plugin | Both extend the table instance. See [Features](/guide/features). |
-| Column Resizing, Performant Column Resizing | Drag interactions against the DOM. See [Column Resizing](/guide/column-resizing) for the sizing state and how to drive it yourself. |
 | Experimental Web Workers Plugin, Experimental Spreadsheet | Experimental TanStack plugins. |
-| With TanStack Virtual (rows, columns, infinite scrolling) | See [Virtualization](/guide/virtualization). |
 | With TanStack Form, Query, Router | Integrations with other JavaScript libraries. |
 | Every component-library example (Shadcn, Material UI, Mantine, Chakra, Hero UI, React Aria) | React component libraries. You write the `Html` here. |
 
