@@ -1,0 +1,36 @@
+/* The drag handle, from the React example's index.css. The table itself is
+   laid out with `display: grid` inline, as in the React example, so the
+   widths come from the CSS variables written on the table element. */
+th {
+  position: relative;
+  text-align: center;
+  font-weight: bold;
+  height: 30px;
+  overflow: hidden;
+}
+
+td {
+  height: 30px;
+  overflow: hidden;
+}
+
+.resizer {
+  position: absolute;
+  top: 0;
+  right: 0;
+  height: 100%;
+  width: 5px;
+  background: rgba(0, 0, 0, 0.5);
+  cursor: col-resize;
+  user-select: none;
+  touch-action: none;
+}
+
+.resizer.isResizing { background: blue; opacity: 1; }
+
+@media (hover: hover) {
+  .resizer { opacity: 0; }
+  *:hover > .resizer { opacity: 1; }
+}
+
+.state-dump-short { height: 10rem; overflow: auto; }

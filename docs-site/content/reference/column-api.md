@@ -67,6 +67,7 @@ Each builder sets one field and returns the column, so they chain with `|>`. The
 | [`withSpanRowsWhen`](/reference/module/Table#withSpanRowsWhen) | Decide per candidate row whether it joins the vertical run. |
 | [`withSpanColumns`](/reference/module/Table#withSpanColumns) | Make this column's cell span that many columns in a given row. |
 | [`withEnableCellSelection`](/reference/module/Table#withEnableCellSelection) | Allow or forbid selecting the cells of one column. |
+| [`withEnableResizing`](/reference/module/Table#withEnableResizing) | Allow or forbid resizing one column by dragging. |
 
 ## Reading one column
 
@@ -103,6 +104,8 @@ These take a `Column` alone.
 | [`columnIsFirst`](/reference/module/Table#columnIsFirst) | Is this the first visible column of the region? |
 | [`columnIsLast`](/reference/module/Table#columnIsLast) | Is this the last visible column of the region? |
 | [`columnCanSpan`](/reference/module/Table#columnCanSpan) | Does this column take part in cell spanning? |
+| [`columnCanResize`](/reference/module/Table#columnCanResize) | Can this column be resized by dragging? |
+| [`columnIsResizing`](/reference/module/Table#columnIsResizing) | Is this column the one being dragged? |
 
 ## Column lists
 

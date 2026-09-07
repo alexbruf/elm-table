@@ -1,5 +1,6 @@
 module Table.Internal.Config exposing
     ( config
+    , defaultColumnResizing
     , initialState
     , rowIdFor
     , withCellRangeSelection
@@ -22,7 +23,7 @@ module Table.Internal.Config exposing
 import Dict
 import Set
 import Table.FilterFn exposing (FilterFn)
-import Table.Internal.Types exposing (Cell, Column, Config, Expanded(..), GroupedColumnMode(..), Row, SizeDefaults, State)
+import Table.Internal.Types exposing (Cell, Column, ColumnResizeDirection(..), ColumnResizeMode(..), ColumnResizingState, Config, Expanded(..), GroupedColumnMode(..), Row, SizeDefaults, State)
 import Table.Value exposing (Value(..))
 
 
@@ -72,6 +73,9 @@ config columns =
     , cellSelectionFilter = Nothing
     , enableCellRangeSelection = True
     , enableMultiCellRangeSelection = True
+    , enableColumnResizing = True
+    , columnResizeMode = ResizeOnChange
+    , columnResizeDirection = Ltr
     }
 
 
@@ -105,6 +109,21 @@ initialState =
     , columnSizing = Dict.empty
     , rowPinning = { top = [], bottom = [] }
     , cellSelection = []
+    , columnResizing = defaultColumnResizing
+    }
+
+
+{-| The transient resize state of a table with no drag in progress. Ports
+`getDefaultColumnResizingState`.
+-}
+defaultColumnResizing : ColumnResizingState
+defaultColumnResizing =
+    { columnSizingStart = []
+    , deltaOffset = Nothing
+    , deltaPercentage = Nothing
+    , isResizingColumn = Nothing
+    , startOffset = Nothing
+    , startSize = Nothing
     }
 
 

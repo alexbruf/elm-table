@@ -14,6 +14,9 @@ module Table.Internal.Types exposing
     , ColumnPinPosition(..)
     , ColumnPinning
     , ColumnRegion(..)
+    , ColumnResizeDirection(..)
+    , ColumnResizeMode(..)
+    , ColumnResizingState
     , Config
     , Expanded(..)
     , GroupedColumnMode(..)
@@ -108,6 +111,7 @@ type alias ColumnFields row =
     , spanColumns : Maybe (Row row -> Int)
     , spanRows : Maybe (SpanRows row)
     , enableCellSelection : Bool
+    , enableResizing : Bool
     }
 
 
@@ -207,6 +211,9 @@ type alias Config row =
     , cellSelectionFilter : Maybe (Cell -> Bool)
     , enableCellRangeSelection : Bool
     , enableMultiCellRangeSelection : Bool
+    , enableColumnResizing : Bool
+    , columnResizeMode : ColumnResizeMode
+    , columnResizeDirection : ColumnResizeDirection
     }
 
 
@@ -216,6 +223,36 @@ type alias SizeDefaults =
     { size : Float
     , minSize : Float
     , maxSize : Float
+    }
+
+
+{-| When a drag commits the widths it computes. Mirrors TanStack's
+`columnResizeMode: 'onChange' | 'onEnd'`.
+-}
+type ColumnResizeMode
+    = ResizeOnChange
+    | ResizeOnEnd
+
+
+{-| Which way a drag counts as growth. Mirrors TanStack's
+`columnResizeDirection: 'ltr' | 'rtl'`.
+-}
+type ColumnResizeDirection
+    = Ltr
+    | Rtl
+
+
+{-| The transient state of one resize drag. Ports `columnResizingState`.
+TanStack's `isResizingColumn: false | string` is a `Maybe String` here, and
+its four `null | number` fields are `Maybe Float`.
+-}
+type alias ColumnResizingState =
+    { columnSizingStart : List ( String, Float )
+    , deltaOffset : Maybe Float
+    , deltaPercentage : Maybe Float
+    , isResizingColumn : Maybe String
+    , startOffset : Maybe Float
+    , startSize : Maybe Float
     }
 
 
@@ -239,6 +276,7 @@ type alias State =
     , columnSizing : Dict String Float
     , rowPinning : RowPinning
     , cellSelection : List CellSelectionRange
+    , columnResizing : ColumnResizingState
     }
 
 

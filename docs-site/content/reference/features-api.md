@@ -101,10 +101,15 @@ Which slice a query is about is a [`ColumnRegion`](/reference/module/Table#Colum
 
 | TanStack | elm-table | Notes |
 | --- | --- | --- |
-| `columnResizingFeature` | — | No drag session. A resize is a pointer handler in your code that ends in [`setColumnSize`](/reference/module/Table#setColumnSize); the committed width lives in `State.columnSizing`. |
-| `columnResizingState` | — | Nothing to store between pointer events. Keep the drag start and delta in your own model. |
-| `ColumnResizeMode` | — | You decide whether your handler writes on every move or only on release. |
-| `ColumnResizeDirection` | — | No text-direction handling; the sign of the delta is yours. |
+| `columnResizingFeature` | [`startColumnResize`](/reference/module/Table#startColumnResize), [`updateColumnResize`](/reference/module/Table#updateColumnResize), [`endColumnResize`](/reference/module/Table#endColumnResize), [`columnCanResize`](/reference/module/Table#columnCanResize), [`columnIsResizing`](/reference/module/Table#columnIsResizing), [`headerCanResize`](/reference/module/Table#headerCanResize), [`headerIsResizing`](/reference/module/Table#headerIsResizing), [`setColumnResizing`](/reference/module/Table#setColumnResizing), [`resetColumnResizing`](/reference/module/Table#resetColumnResizing) | The committed widths land in `State.columnSizing`. |
+| `columnResizingState` | [`ColumnResizingState`](/reference/module/Table#ColumnResizingState) | `State.columnResizing`. `isResizingColumn` is a `Maybe String` instead of `false \| string`, and the four numbers are `Maybe Float`. |
+| `header.getResizeHandler()` | the three transitions above | The handler's closure installs its own document listeners; here you wire `mousedown`, `mousemove` and `mouseup` to `startColumnResize`, `updateColumnResize` and `endColumnResize`. |
+| `table.resetHeaderSizeInfo(true)` | [`resetColumnResizing`](/reference/module/Table#resetColumnResizing) | The no-argument form restores `table.initialState`, which has no counterpart; pass the slice you kept to [`setColumnResizing`](/reference/module/Table#setColumnResizing). |
+| `ColumnResizeMode` | [`ColumnResizeMode`](/reference/module/Table#ColumnResizeMode) | [`resizeOnChange`](/reference/module/Table#resizeOnChange) and [`resizeOnEnd`](/reference/module/Table#resizeOnEnd). `Config.columnResizeMode` defaults to `resizeOnChange` here, where TanStack defaults to `'onEnd'`. |
+| `ColumnResizeDirection` | [`ColumnResizeDirection`](/reference/module/Table#ColumnResizeDirection) | [`resizeLtr`](/reference/module/Table#resizeLtr) and [`resizeRtl`](/reference/module/Table#resizeRtl), through `Config.columnResizeDirection`. |
+| `enableColumnResizing` | `Config.enableColumnResizing` | Defaults to `True`. |
+| `enableResizing` | [`withEnableResizing`](/reference/module/Table#withEnableResizing) | The column-level flag, also `True` by default. |
+| `passiveEventSupported`, `isTouchStartEvent` | — | Event plumbing. Your decoders decide what a touch event means. |
 
 See [Column Resizing](/guide/column-resizing).
 
