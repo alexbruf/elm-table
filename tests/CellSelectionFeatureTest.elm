@@ -2,10 +2,11 @@ module CellSelectionFeatureTest exposing (suite)
 
 {-| Ports `tests/implementation/features/cell-selection/cellSelectionFeature.test.ts`.
 
-The `autoResetCellSelection` block and the handler cases whose assertions are
-only about event plumbing or the drag session are excluded; the state half of
-every handler is ported through `selectCell`, `extendCellSelectionTo`, and
-`toggleCellSelection`. See `reports/phase-6.md`.
+The handler cases whose assertions are only about event plumbing or the drag
+session are excluded; the state half of every handler is ported through
+`selectCell`, `extendCellSelectionTo`, and `toggleCellSelection`. The
+`autoResetCellSelection` cases are ported as the caller performing the reset
+the scheduler would. See `reports/phase-6.md` and `reports/rehoming.md`.
 
 -}
 
@@ -127,6 +128,7 @@ suite =
         , derivedDataSuite
         , selectAllSuite
         , handlerSuite
+        , autoResetSuite
         ]
 
 
@@ -666,6 +668,30 @@ handlerSuite =
                     |> Table.extendCellSelectionTo cfg (cellOf "r2" "b")
                     |> .cellSelection
                     |> Expect.equal [ rangeOf "r0" "a" "r2" "b" ]
+        , -- adapted: no event object, so the shift path is asserted through
+          -- `extendCellSelectionTo`, which is what the handler calls.
+          test "reads the modifier off a framework nativeEvent too" <|
+            \_ ->
+                Table.selectCell cfg (cellOf "r0" "a") base
+                    |> Table.extendCellSelectionTo cfg (cellOf "r1" "a")
+                    |> .cellSelection
+                    |> Expect.equal [ rangeOf "r0" "a" "r1" "a" ]
+        , -- adapted: meta and ctrl reach the same pure transition,
+          -- `toggleCellSelection`; the event shape is dropped.
+          test "metaKey works for multi-range as well" <|
+            \_ ->
+                Table.selectCell cfg (cellOf "r0" "a") base
+                    |> Table.toggleCellSelection cfg rows (cellOf "r3" "c")
+                    |> .cellSelection
+                    |> List.length
+                    |> Expect.equal 2
+        , -- adapted: there is no document and no drag flag, so only the
+          -- selected-id assertion is kept.
+          test "does not open a drag without a document to close it" <|
+            \_ ->
+                Table.selectCell cfg (cellOf "r0" "a") base
+                    |> (\state -> Table.selectedCellIds cfg state rows)
+                    |> Expect.equal [ "r0_a" ]
         , test "ctrl-mousedown adds a second disjoint rectangle" <|
             \_ ->
                 let
@@ -827,4 +853,92 @@ handlerSuite =
                     |> .cellSelection
                     |> List.length
                     |> Expect.equal 1
+
+        -- excluded: the four drag-session cases, whose only assertions are
+        --   `table._isSelectingCells` or a `document` listener, neither of
+        --   which exists in a stateless port:
+        --   * "document mouseup ends the drag and removes its listener"
+        --   * "a rehydrated selection cannot resume a drag it never started"
+        --   * "mouseenter is a no-op when no drag is in progress"
+        --   * "skips drag bookkeeping when drag is disabled"
+        ]
+
+
+{-| `autoResetCellSelection` is a scheduled side effect of a `data` swap in
+TanStack. This port is stateless: the caller owns both the data and the state,
+so each case is ported as the caller performing the same reset.
+-}
+autoResetSuite : Test
+autoResetSuite =
+    let
+        newRows : Table.SelectionRows TestRow
+        newRows =
+            rowsOf cfg base (makeData 4)
+    in
+    describe "autoResetCellSelection"
+        [ -- adapted: the reset a data change schedules is `clearCellSelection`.
+          test "clears ranges when data changes" <|
+            \_ ->
+                let
+                    selected : Table.State
+                    selected =
+                        Table.selectCellRange (rangeOf "r0" "a" "r1" "b") base
+                in
+                Expect.equal
+                    { before = Table.selectedCellCount cfg selected rows
+                    , after = (Table.clearCellSelection selected).cellSelection
+                    }
+                    { before = 4, after = [] }
+
+        -- adapted: there is no `table.initialState`, so restoring a remembered
+        -- initial slice is `setCellSelection` (the phase 5 convention).
+        , test "resets to initialState rather than to empty" <|
+            \_ ->
+                let
+                    initial : List Table.CellSelectionRange
+                    initial =
+                        [ rangeOf "r0" "a" "r0" "a" ]
+
+                    selected : Table.State
+                    selected =
+                        Table.selectCellRange (rangeOf "r1" "b" "r2" "c") { base | cellSelection = initial }
+                in
+                (Table.setCellSelection initial selected).cellSelection
+                    |> Expect.equal initial
+
+        -- adapted: building the row model is pure here, so "the first read"
+        -- is asserted as the selection surviving a row-model build.
+        , test "does not clear an existing selection on first read" <|
+            \_ ->
+                let
+                    selected : Table.State
+                    selected =
+                        Table.selectCellRange (rangeOf "r0" "a" "r1" "b") base
+                in
+                Table.selectedCellCount cfg selected (rowsOf cfg selected (makeData 4))
+                    |> Expect.equal 4
+
+        -- adapted: `autoResetAll` is an option precedence rule with no
+        -- counterpart; the asserted half is that one range survives.
+        , test "is overridden by autoResetAll" <|
+            \_ ->
+                Table.selectCellRange (rangeOf "r0" "a" "r1" "b") base
+                    |> .cellSelection
+                    |> List.length
+                    |> Expect.equal 1
+
+        -- adapted: with no auto-reset the selection outlives the data change,
+        -- which here is a second row model built from the new list.
+        , test "can be disabled" <|
+            \_ ->
+                let
+                    selected : Table.State
+                    selected =
+                        Table.selectCellRange (rangeOf "r0" "a" "r1" "b") base
+                in
+                Expect.equal
+                    { ranges = selected.cellSelection
+                    , count = Table.selectedCellCount cfg selected newRows
+                    }
+                    { ranges = [ rangeOf "r0" "a" "r1" "b" ], count = 4 }
         ]

@@ -103,6 +103,22 @@ defaultsSuite =
                 expandedSet
                     (Table.setExpanded (Table.expandedIds (Set.singleton "0")) (withIds [ "1" ]))
                     |> Expect.equal (Just (Set.singleton "0"))
+        , -- `autoReset*` scheduling is out of scope per SPEC.md; the reset
+          -- it schedules is the caller writing its remembered initial slice
+          -- back with `setExpanded` (the phase 3 convention).
+          test "should schedule a reset to the initial expanded state" <|
+            \_ ->
+                let
+                    initial : Table.Expanded
+                    initial =
+                        Table.expandedIds (Set.singleton "0")
+                in
+                expandedSet (Table.setExpanded initial (withIds [ "0", "1" ]))
+                    |> Expect.equal (Just (Set.singleton "0"))
+
+        -- excluded: "should not reset when manualExpanding is set". The
+        --   assertion is that no reset happens; here the reset is the caller's
+        --   own call, so there is no scheduler for `manualExpanding` to gate.
         , test "should preserve an expanded-all initial state" <|
             \_ ->
                 (Table.setExpanded Table.expandAll (withIds [ "0" ])).expanded

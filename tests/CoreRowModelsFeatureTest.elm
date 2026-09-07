@@ -5,8 +5,9 @@ module CoreRowModelsFeatureTest exposing (suite)
 
 Phase 3 filled in the filtering, sorting and pagination stages and phase 4
 the grouping and expanding ones, so the matrix cases below assert both
-halves of every "one manual option at a time" case. Excluded cases are
-listed in `reports/phase-2.md`.
+halves of every "one manual option at a time" case. The `setOptions` runtime
+toggles are ported as two configs, one per side of the toggle. Excluded cases
+are listed in `reports/phase-2.md` and `reports/rehoming.md`.
 
 -}
 
@@ -155,6 +156,21 @@ suite =
                     every
                         |> List.map (\stage -> stage == model)
                         |> Expect.equal (List.repeat 6 True)
+
+            -- adapted: nothing is cached in a pure port, so the assertion is
+            -- that repeated builds from the same config and data are equal.
+            , test "should cache the core row model factory across calls" <|
+                \_ ->
+                    let
+                        cfg : Table.Config Person
+                        cfg =
+                            Table.config Fixtures.columns
+
+                        build : () -> Table.RowModel Person
+                        build () =
+                            Table.coreRowModelFromList cfg Table.initialState (Fixtures.makeData [ 3 ])
+                    in
+                    Expect.equal (build ()) (build ())
             ]
         , describe "manual processing options"
             [ test "manualFiltering should bypass a registered filtered row model" <|
@@ -273,6 +289,138 @@ suite =
                         , keepsEveryRow = List.length s.final.rows
                         }
                         { bypassed = True, identity_ = True, keepsEveryRow = 7 }
+            ]
+        , -- adapted: there is no factory to instantiate, so only the
+          -- observable half is asserted: the stage is bypassed while the
+          -- manual option is on and applies as soon as it is off.
+          describe "instantiate-then-bypass ordering"
+            [ test "should instantiate a registered factory even when its manual option bypasses the result" <|
+                \_ ->
+                    let
+                        state : Table.State
+                        state =
+                            { matrixState
+                                | columnFilters = [ { id = "name", value = Value.String "zzz-no-match" } ]
+                            }
+
+                        core : Table.RowModel Item
+                        core =
+                            Table.coreRowModelFromList matrixConfig state matrixData
+
+                        bypassed : Table.RowModel Item
+                        bypassed =
+                            Table.filteredRowModel { matrixConfig | manualFiltering = True } state core
+
+                        applied : Table.RowModel Item
+                        applied =
+                            Table.filteredRowModel matrixConfig state core
+                    in
+                    Expect.equal
+                        { bypassedIsCore = bypassed == core
+                        , appliedIsCore = applied == core
+                        , appliedRows = List.length applied.rows
+                        }
+                        { bypassedIsCore = True, appliedIsCore = False, appliedRows = 0 }
+            ]
+        , -- adapted: `setOptions` has no counterpart, so each toggle is two
+          -- configs, one per side of the switch (the phase 3 convention).
+          describe "runtime toggling via setOptions"
+            [ test "manualFiltering toggle should switch between identity and applied filtering" <|
+                \_ ->
+                    let
+                        on =
+                            matrix (\cfg -> { cfg | manualFiltering = True })
+
+                        off =
+                            matrix identity
+                    in
+                    Expect.equal
+                        { manualBypassed = on.filtered == on.preFiltered
+                        , manualRows = List.length on.filtered.rows
+                        , appliedBypassed = off.filtered == off.preFiltered
+                        , appliedIds = List.map Table.rowId off.filtered.rows
+                        }
+                        { manualBypassed = True
+                        , manualRows = 5
+                        , appliedBypassed = False
+                        , appliedIds = [ "0", "1", "2", "3" ]
+                        }
+            , test "manualGrouping toggle should switch between identity and applied grouping" <|
+                \_ ->
+                    let
+                        on =
+                            matrix (\cfg -> { cfg | manualGrouping = True })
+
+                        off =
+                            matrix identity
+                    in
+                    Expect.equal
+                        { manualBypassed = on.grouped == on.preGrouped
+                        , appliedBypassed = off.grouped == off.preGrouped
+                        , appliedIds = List.map Table.rowId off.grouped.rows
+                        }
+                        { manualBypassed = True
+                        , appliedBypassed = False
+                        , appliedIds = [ "status:group-a", "status:group-b" ]
+                        }
+            , test "manualSorting toggle should switch between identity and applied sorting" <|
+                \_ ->
+                    let
+                        on =
+                            matrix (\cfg -> { cfg | manualGrouping = True, manualSorting = True })
+
+                        off =
+                            matrix (\cfg -> { cfg | manualGrouping = True })
+                    in
+                    Expect.equal
+                        { manualBypassed = on.sorted == on.preSorted
+                        , appliedBypassed = off.sorted == off.preSorted
+                        , appliedNames = List.map (Table.rowOriginal >> .name) off.sorted.rows
+                        }
+                        { manualBypassed = True
+                        , appliedBypassed = False
+                        , appliedNames = [ "alpha", "bravo", "delta", "echo" ]
+                        }
+            , test "manualExpanding toggle should switch between identity and applied expanding" <|
+                \_ ->
+                    let
+                        on =
+                            matrix (\cfg -> { cfg | manualExpanding = True })
+
+                        off =
+                            matrix identity
+                    in
+                    Expect.equal
+                        { manualBypassed = on.expanded == on.preExpanded
+                        , manualRows = List.length on.expanded.rows
+                        , appliedBypassed = off.expanded == off.preExpanded
+                        , appliedRows = List.length off.expanded.rows
+                        }
+                        { manualBypassed = True
+                        , manualRows = 2
+                        , appliedBypassed = False
+                        , appliedRows = 7
+                        }
+            , test "manualPagination toggle should switch between identity and applied pagination" <|
+                \_ ->
+                    let
+                        on =
+                            matrix (\cfg -> { cfg | manualPagination = True })
+
+                        off =
+                            matrix identity
+                    in
+                    Expect.equal
+                        { manualBypassed = on.paginated == on.prePaginated
+                        , manualRows = List.length on.paginated.rows
+                        , appliedBypassed = off.paginated == off.prePaginated
+                        , appliedRows = List.length off.paginated.rows
+                        }
+                        { manualBypassed = True
+                        , manualRows = 7
+                        , appliedBypassed = False
+                        , appliedRows = 2
+                        }
             ]
         , describe "all manual options at once"
             [ test "should make the final row model identity-equal to the core row model" <|

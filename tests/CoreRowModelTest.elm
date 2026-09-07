@@ -184,6 +184,27 @@ suite =
                         |> .rows
                         |> List.map (Table.rowSubRows >> List.length)
                         |> Expect.equal [ 0, 0 ]
+            , -- adapted: `Config.getSubRows` is `row -> List row` with no
+              -- index parameter and there is no spy, so the assertion is
+              -- that the accessor ran on every original row.
+              test "should call getSubRows with (originalRow, index)" <|
+                \_ ->
+                    let
+                        data : List Person
+                        data =
+                            Fixtures.makeData [ 3, 2 ]
+
+                        model : Table.RowModel Person
+                        model =
+                            Table.coreRowModelFromList Fixtures.config Table.initialState data
+                    in
+                    Expect.equal
+                        ( List.length model.rows
+                        , List.map (Table.rowSubRows >> List.map (Table.rowOriginal >> .id)) model.rows
+                        )
+                        ( 3
+                        , List.map (Fixtures.subRowsOf >> List.map .id) data
+                        )
             , test "should stay flat when nested raw data is used without getSubRows" <|
                 \_ ->
                     let
@@ -235,6 +256,67 @@ suite =
                     in
                     Expect.equal ( model.rows, model.flatRows, Dict.toList model.rowsById )
                         ( [], [], [] )
+            ]
+        , -- adapted: Elm values are recomputed and compared structurally, so
+          -- instance identity becomes equality and `setOptions` becomes a
+          -- second config or a second data list.
+          describe "memoization"
+            [ test "should return the same model object across repeated calls" <|
+                \_ ->
+                    let
+                        build : () -> Table.RowModel Person
+                        build () =
+                            Table.coreRowModelFromList Fixtures.config Table.initialState (Fixtures.makeData [ 3 ])
+                    in
+                    Expect.equal
+                        ( build (), List.head (build ()).rows )
+                        ( build (), List.head (build ()).rows )
+            , -- adapted: a copied list is an equal value in Elm, so the new
+              -- data really changes a row; the row count still matches.
+              test "should build a new model when the data array identity changes" <|
+                \_ ->
+                    let
+                        first : Table.RowModel Person
+                        first =
+                            Table.coreRowModelFromList Fixtures.config Table.initialState (Fixtures.makeData [ 3 ])
+
+                        second : Table.RowModel Person
+                        second =
+                            Fixtures.makeData [ 3 ]
+                                |> List.map (\person -> { person | firstName = person.firstName ++ "!" })
+                                |> Table.coreRowModelFromList Fixtures.config Table.initialState
+                    in
+                    Expect.equal
+                        ( second == first
+                        , List.head second.rows == List.head first.rows
+                        , List.length second.rows == List.length first.rows
+                        )
+                        ( False, False, True )
+            , -- adapted: `setOptions` becomes a second config differing only
+              -- in an option the core row model does not read.
+              test "should preserve the cached model when setOptions keeps the same data reference" <|
+                \_ ->
+                    let
+                        data : List Person
+                        data =
+                            Fixtures.makeData [ 3 ]
+
+                        first : Table.RowModel Person
+                        first =
+                            Table.coreRowModelFromList Fixtures.config Table.initialState data
+
+                        again : Table.RowModel Person
+                        again =
+                            Table.coreRowModelFromList
+                                { config_ | manualPagination = True }
+                                Table.initialState
+                                data
+
+                        config_ : Table.Config Person
+                        config_ =
+                            Fixtures.config
+                    in
+                    Expect.equal again first
             ]
         , describe "row-model pipeline flatRows ordering"
             [ test "keeps parents before descendants through every hierarchical stage" <|

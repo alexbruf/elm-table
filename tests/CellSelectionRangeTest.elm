@@ -191,6 +191,17 @@ boundsSuite =
                     |> Table.selectCellRangeWith Table.replaceSelection (rangeOf "r0" "a" "r0" "a")
                     |> (\state -> Table.selectedCellIds cfg state rows)
                     |> Expect.equal [ "r0_a" ]
+        , -- adapted: bounds are a value here, so the memo becomes two reads
+          -- of the same selection agreeing.
+          test "is memoized between reads" <|
+            \_ ->
+                let
+                    boundsOf : () -> List Table.CellSelectionBounds
+                    boundsOf () =
+                        Table.selectCellRange (rangeOf "r0" "a" "r2" "b") base
+                            |> (\state -> Table.cellSelectionBounds cfg state rows)
+                in
+                Expect.equal (boundsOf ()) (boundsOf ())
         , test "recomputes when the selection changes" <|
             \_ ->
                 let

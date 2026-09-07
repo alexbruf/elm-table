@@ -245,6 +245,29 @@ suite =
                     Expect.equal
                         ( regionSpans cfg (onPage 0) makeData, regionSpans cfg (onPage 1) makeData )
                         ( [ 3, 0, 0, 1 ], [ 2, 0, 2, 0 ] )
+
+            -- adapted: there is no memo object, so identity becomes equality:
+            -- two reads on one page agree and the next page differs.
+            , test "invalidates the memoized index when only the page changes" <|
+                \_ ->
+                    let
+                        cfg : Table.Config TestRow
+                        cfg =
+                            configOf makeColumns
+
+                        onPage : Int -> Table.State
+                        onPage pageIndex =
+                            { base | pagination = { pageIndex = pageIndex, pageSize = 4 } }
+                    in
+                    Expect.all
+                        [ \_ ->
+                            Expect.equal (regionSpans cfg (onPage 0) makeData)
+                                (regionSpans cfg (onPage 0) makeData)
+                        , \_ ->
+                            Expect.notEqual (regionSpans cfg (onPage 1) makeData)
+                                (regionSpans cfg (onPage 0) makeData)
+                        ]
+                        ()
             ]
         , describe "spanning with row pinning"
             [ test "breaks runs at pinned section boundaries and indexes every section" <|

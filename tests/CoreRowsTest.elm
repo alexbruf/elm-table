@@ -9,7 +9,7 @@ Excluded cases are listed in `reports/phase-2.md`.
 
 import Dict
 import Expect
-import Fixtures exposing (Person)
+import Fixtures exposing (Person, Status(..), SubRows(..))
 import Table
 import Table.Value as Value
 import Test exposing (Test, describe, test)
@@ -39,6 +39,38 @@ cellsById : Table.Config Person -> Table.Row Person -> Dict.Dict String Table.Ce
 cellsById cfg row =
     Table.getAllCells cfg Table.initialState row
         |> List.foldl (\cell acc -> Dict.insert cell.columnId cell acc) Dict.empty
+
+
+{-| The `constructRow` fixture: a parent with two leaves, built as data.
+-}
+leafPerson : String -> Person
+leafPerson name =
+    Person (String.toLower name) name "Leaf" 0 0 0 Relationship (SubRows [])
+
+
+parentPerson : List Person -> Person
+parentPerson children =
+    Person "parent" "Parent" "Row" 0 0 0 Relationship (SubRows children)
+
+
+leafRowIdsWith : (Person -> List Person) -> List String
+leafRowIdsWith subRows =
+    let
+        cfg : Table.Config Person
+        cfg =
+            Table.config Fixtures.columns
+                |> Table.withGetRowId (\person _ _ -> person.id)
+                |> Table.withSubRows subRows
+
+        model : Table.RowModel Person
+        model =
+            Table.coreRowModelFromList cfg
+                Table.initialState
+                [ parentPerson [ leafPerson "A", leafPerson "B" ] ]
+    in
+    Table.findRow model "parent"
+        |> Maybe.map (Table.getLeafRows >> List.map Table.rowId)
+        |> Maybe.withDefault []
 
 
 suite : Test
@@ -77,6 +109,22 @@ suite =
                                 }
                             )
             ]
+        , -- adapted: `getLeafRows` is a pure read, so the memo becomes
+          -- "repeated reads agree" and the mutated `subRows` becomes a
+          -- second config whose sub-row accessor reverses the children.
+          describe "constructRow memoization"
+            [ test "memoizes getLeafRows until subRows changes" <|
+                \_ ->
+                    Expect.equal
+                        { first = leafRowIdsWith Fixtures.subRowsOf
+                        , second = leafRowIdsWith Fixtures.subRowsOf
+                        , reordered = leafRowIdsWith (Fixtures.subRowsOf >> List.reverse)
+                        }
+                        { first = [ "a", "b" ]
+                        , second = [ "a", "b" ]
+                        , reordered = [ "b", "a" ]
+                        }
+            ]
         , describe "row_getAllCells"
             [ test "should build one cell per leaf column in leaf column order" <|
                 \_ ->
@@ -92,6 +140,18 @@ suite =
                             )
                         |> Expect.equal
                             (Just ( List.map Table.columnId (Table.leafColumns flatConfig), True ))
+            , -- adapted: cells are plain records built on demand, so
+              -- instance reuse becomes structural equality across two calls.
+              test "should reuse cell instances across calls" <|
+                \_ ->
+                    let
+                        cellsOf : () -> Maybe (List Table.Cell)
+                        cellsOf () =
+                            flatModel 1
+                                |> firstRow
+                                |> Maybe.map (Table.getAllCells flatConfig Table.initialState)
+                    in
+                    Expect.equal (cellsOf ()) (cellsOf ())
             , test "should preserve cell identity across column order changes" <|
                 \_ ->
                     flatModel 1

@@ -303,6 +303,17 @@ suite =
                         )
                         ( Just [ "a", "b", "inner", "outer" ], Just expected )
             ]
+        , -- adapted: `getContext` builds a render context around the table
+          -- instance; the parts it exposes are the header's own fields.
+          describe "header_getContext"
+            [ test "should expose the header, column, and table" <|
+                \_ ->
+                    groupsOf config Table.initialState
+                        |> rowAt 1
+                        |> List.head
+                        |> Maybe.map (\header -> ( Table.headerId header, Table.headerColumnId header ))
+                        |> Expect.equal (Just ( "a", "a" ))
+            ]
         , describe "table_getLeafHeaders"
             [ test "should collect the leaf headers reachable from the top header row" <|
                 \_ ->

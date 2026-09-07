@@ -147,6 +147,114 @@ suite : Test
 suite =
     describe "row selection ranges"
         [ describe "integration with the grouped, expanded and paginated stages" pendingIntegration
+        , describe "row selection range event detection"
+            [ -- adapted: there is no event, so the direct and the wrapped
+              -- shift form collapse into the same `selectRange` call; the
+              -- ordinary click is `toggleRowSelected`.
+              test "detects direct and wrapped Shift events but ignores ordinary events" <|
+                \_ ->
+                    let
+                        range : Table.State
+                        range =
+                            state
+                                |> click cfg flatModel "0" True
+                                |> shiftClick cfg flatModel "0" "2" True
+
+                        ordinary : Table.State
+                        ordinary =
+                            state
+                                |> click cfg flatModel "0" True
+                                |> click cfg flatModel "2" True
+                    in
+                    Expect.equal ( selected range, selected ordinary )
+                        ( [ "0", "1", "2" ], [ "0", "2" ] )
+
+            -- adapted: range selection is opt-in at the call site here, so the
+            -- caller is the range-event detector: an ordinary click toggles and
+            -- the caller's own "range" interaction calls `selectRange`.
+            , test "supports custom range event detection" <|
+                \_ ->
+                    let
+                        afterOrdinary : Table.State
+                        afterOrdinary =
+                            state
+                                |> click cfg flatModel "0" True
+                                |> click cfg flatModel "2" True
+
+                        afterCustomRange : Table.State
+                        afterCustomRange =
+                            shiftClick cfg flatModel "2" "4" True afterOrdinary
+                    in
+                    Expect.equal ( selected afterOrdinary, selected afterCustomRange )
+                        ( [ "0", "2" ], [ "0", "2", "3", "4" ] )
+            ]
+        , describe "row selection anchor lifecycle"
+            [ -- adapted: `_lastSelectedRowId` is instance data in TanStack; here
+              -- the anchor is an argument the caller owns, so the case asserts
+              -- that an ordinary toggle and a direct `setRowSelection` leave it
+              -- untouched: a later range still spans from the same anchor.
+              test "is not changed by direct row or table state APIs" <|
+                \_ ->
+                    let
+                        afterDirectWrites : Table.State
+                        afterDirectWrites =
+                            state
+                                |> click cfg flatModel "1" True
+                                |> click cfg flatModel "0" True
+                                |> Table.setRowSelection (Set.fromList [ "0", "1" ])
+                    in
+                    afterDirectWrites
+                        |> shiftClick cfg flatModel "1" "3" True
+                        |> selected
+                        |> Expect.equal [ "0", "1", "2", "3" ]
+
+            -- excluded: "clears through every selection reset and select-all
+            --   path". The anchor is caller state in this port, so no reset
+            --   path has an anchor to clear.
+            ]
+        , describe "row selection range performance"
+            [ -- adapted: the `getRowsInDisplayOrder` spy becomes an
+              -- observable difference. The model is ordered by `kind`, so
+              -- display order (0, 2, 4, 1, 3, 5) is not row order: only a
+              -- range that resolves display order can select exactly
+              -- 0, 2 and 4.
+              test "does not resolve display order for ordinary clicks but does for ranges" <|
+                \_ ->
+                    let
+                        byKind : Table.State
+                        byKind =
+                            { state | sorting = [ { id = "kind", desc = False } ] }
+
+                        display : Table.RowModel TestRow
+                        display =
+                            Table.coreRowModelFromList cfg byKind flatData
+                                |> Table.sortedRowModel cfg byKind
+
+                        ordinary : Table.State
+                        ordinary =
+                            byKind
+                                |> click cfg display "0" True
+                                |> click cfg display "4" True
+
+                        range : Table.State
+                        range =
+                            byKind
+                                |> click cfg display "0" True
+                                |> shiftClick cfg display "0" "4" True
+                    in
+                    Expect.equal ( selected ordinary, selected range )
+                        ( [ "0", "4" ], [ "0", "2", "4" ] )
+
+            -- adapted: the spies become the one state the range returns; a
+            -- range is a single transition here, never a toggle per row.
+            , test "uses one selection change and never calls row.toggleSelected per interval row" <|
+                \_ ->
+                    state
+                        |> click cfg flatModel "0" True
+                        |> shiftClick cfg flatModel "0" "4" True
+                        |> selected
+                        |> Expect.equal [ "0", "1", "2", "3", "4" ]
+            ]
         , test "establishes an anchor and selects forward and reverse inclusive ranges" <|
             \_ ->
                 let

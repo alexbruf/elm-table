@@ -8,6 +8,10 @@ keyed `aggregationFn: ['sum', 'mean', …]` option has no counterpart. The
 cases that are only about the keyed form are excluded in
 `reports/phase-4.md`; the mixed ones keep their scalar half with a comment.
 
+The five cases that need `columnDef.getAggregationValue`, `manualAggregation`,
+keyed aggregations or the `AggregationContext` object stay excluded, with the
+exact API each one wants listed under "Needs API" in `reports/rehoming.md`.
+
 -}
 
 import Expect
@@ -147,6 +151,89 @@ rootSuite =
                     , total = Table.aggregationValue cfg model "amount"
                     }
                     { auto = Just (Value.Number 2), total = Value.Number 5 }
+        , -- adapted: nothing is cached in a pure port, so the call counts
+          -- become "the same inputs give the same value" and the `setOptions`
+          -- data swap becomes a second row model built from the new list.
+          test "caches the default rows, invalidates with data, and recomputes explicit rows" <|
+            \_ ->
+                let
+                    sized : AggregationFn
+                    sized =
+                        AggregationFn.custom
+                            (\values -> Value.Number (toFloat (List.length values)))
+
+                    cfg : Table.Config AmountRow
+                    cfg =
+                        Table.config
+                            [ Table.column "value" .amount
+                                |> Table.withAggregationFn sized
+                            ]
+
+                    model : Table.RowModel AmountRow
+                    model =
+                        core cfg [ AmountRow (Value.Number 1), AmountRow (Value.Number 2) ]
+
+                    grown : Table.RowModel AmountRow
+                    grown =
+                        core cfg
+                            [ AmountRow (Value.Number 1)
+                            , AmountRow (Value.Number 2)
+                            , AmountRow (Value.Number 3)
+                            ]
+                in
+                Expect.equal
+                    { first = Table.aggregationValue cfg model "value"
+                    , second = Table.aggregationValue cfg model "value"
+                    , explicit =
+                        Table.aggregationValueOf cfg model "value" { maxDepth = 0, rows = model.rows }
+                    , explicitAgain =
+                        Table.aggregationValueOf cfg model "value" { maxDepth = 0, rows = model.rows }
+                    , afterDataChange = Table.aggregationValue cfg grown "value"
+                    }
+                    { first = Value.Number 2
+                    , second = Value.Number 2
+                    , explicit = Value.Number 2
+                    , explicitAgain = Value.Number 2
+                    , afterDataChange = Value.Number 3
+                    }
+        , -- adapted: the cache key is not observable, so the assertion is that
+          -- each depth keeps its own value across repeated reads.
+          test "includes aggregation depth in the default-row cache key" <|
+            \_ ->
+                let
+                    sized : AggregationFn
+                    sized =
+                        AggregationFn.custom
+                            (\values -> Value.Number (toFloat (List.length values)))
+
+                    cfg : Table.Config Node
+                    cfg =
+                        nodeConfig
+                            [ Table.column "value" (.amount >> Value.Number)
+                                |> Table.withAggregationFn sized
+                            ]
+
+                    model : Table.RowModel Node
+                    model =
+                        core cfg [ node 10 "root" [ node 1 "a" [], node 2 "b" [] ] ]
+
+                    at : Int -> Value
+                    at maxDepth =
+                        Table.aggregationValueOf cfg model "value" { maxDepth = maxDepth, rows = model.rows }
+                in
+                Expect.equal
+                    { default_ = at 0
+                    , defaultAgain = at 0
+                    , deeper = at 1
+                    , deeperAgain = at 1
+                    , backToDefault = at 0
+                    }
+                    { default_ = Value.Number 1
+                    , defaultAgain = Value.Number 1
+                    , deeper = Value.Number 2
+                    , deeperAgain = Value.Number 2
+                    , backToDefault = Value.Number 1
+                    }
         , test "accepts rows from any row model or custom selection" <|
             \_ ->
                 -- The `getFilteredSelectedRowModel` line needs row selection,

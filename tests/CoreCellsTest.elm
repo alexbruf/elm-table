@@ -58,6 +58,16 @@ suite =
                                 }
                             )
             ]
+        , -- adapted: `getContext` builds a render context around the table
+          -- instance, which this port has no counterpart for; the parts the
+          -- context exposes are the cell's own fields, asserted here.
+          describe "cell_getContext"
+            [ test "should expose the table, column, row, and cell with bound value helpers" <|
+                \_ ->
+                    cell "firstName"
+                        |> Maybe.map (\c -> ( c.columnId, c.rowId, c.value ))
+                        |> Expect.equal (Just ( "firstName", "0", Value.String "Tanner" ))
+            ]
         , describe "cell_getValue"
             [ test "should read the accessor value for the cell" <|
                 \_ ->

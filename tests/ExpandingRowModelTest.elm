@@ -251,7 +251,37 @@ suite =
                     Expect.equal ( model == pre, ids model ) ( True, [ "0", "1" ] )
             ]
         , describe "memoization"
-            [ test "should produce a new model when expanded state changes" <|
+            [ -- adapted: Elm values are recomputed and compared structurally,
+              -- so instance identity becomes equality across two builds.
+              test "should return the same reference on repeated calls" <|
+                \_ ->
+                    let
+                        build : () -> Table.RowModel Person
+                        build () =
+                            expandedModel config (expandedIdsState [ "0" ]) nestedData
+                    in
+                    Expect.equal (build ()) (build ())
+
+            -- adapted: the "unrelated getters" are pure reads here, so the
+            -- assertion is that they leave the next build equal.
+            , test "should not recompute when unrelated getters are called in between" <|
+                \_ ->
+                    let
+                        state : Table.State
+                        state =
+                            expandedIdsState [ "0" ]
+
+                        first : Table.RowModel Person
+                        first =
+                            expandedModel config state nestedData
+
+                        unrelated : Int
+                        unrelated =
+                            List.length (Table.coreRowModelFromList config state nestedData).rows
+                    in
+                    Expect.equal ( expandedModel config state nestedData, unrelated )
+                        ( first, 2 )
+            , test "should produce a new model when expanded state changes" <|
                 \_ ->
                     -- The `expect(second).not.toBe(first)` half is instance
                     -- identity; the row list it guards is asserted here.

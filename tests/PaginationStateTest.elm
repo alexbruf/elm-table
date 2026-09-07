@@ -367,18 +367,78 @@ suite =
                         ( page defaultPagination, page { pageIndex = 2, pageSize = 10 } )
                         ( ( 10, Just "0" ), ( 5, Just "20" ) )
             ]
+        , -- `autoReset*` scheduling is out of scope per SPEC.md, but the
+          -- reset itself is `Table.resetPageIndex`, so every case whose
+          -- assertion is that reset is ported against it.
+          describe "table_autoResetPageIndex"
+            [ -- adapted: the caller calls the reset the scheduler would.
+              test "should reset the page index for client-side pagination" <|
+                \_ ->
+                    let
+                        moved : Table.State
+                        moved =
+                            Table.setPage config 2 (at defaultPagination)
+                    in
+                    Expect.equal
+                        ( (paginationOf moved).pageIndex
+                        , (paginationOf (Table.resetPageIndex config moved)).pageIndex
+                        )
+                        ( 2, 0 )
 
-        -- excluded: describe "table_autoResetPageIndex" (6 cases)
-        --   * "should reset the page index for client-side pagination"
-        --   * "should reset to the first page instead of the initial page index"
-        --   * "should not invoke onPaginationChange when already on the default
-        --     page"
-        --   * "should invoke onPaginationChange when off the default page"
-        --   * "should not reset when manualPagination is set"
-        --   * "should reset even for manual pagination when autoResetPageIndex
-        --     opts back in"
-        --   `autoReset*` is out of scope per SPEC.md: nothing here reacts to a
-        --   state change, the caller decides when to reset the page.
+            -- adapted: `resetPageIndex` goes to the feature default, never to
+            -- a caller's remembered initial page (the phase 3 convention).
+            , test "should reset to the first page instead of the initial page index" <|
+                \_ ->
+                    let
+                        moved : Table.State
+                        moved =
+                            Table.setPage config 2 (at { pageIndex = 1, pageSize = 10 })
+                    in
+                    Expect.equal
+                        ( (paginationOf moved).pageIndex
+                        , (paginationOf (Table.resetPageIndex config moved)).pageIndex
+                        )
+                        ( 2, 0 )
+
+            -- adapted: there is no `onPaginationChange` spy, so "not called"
+            -- is "the state comes back unchanged".
+            , test "should not invoke onPaginationChange when already on the default page" <|
+                \_ ->
+                    let
+                        state : Table.State
+                        state =
+                            at defaultPagination
+                    in
+                    Table.resetPageIndex config state |> Expect.equal state
+
+            -- adapted: the resulting `Pagination` stands in for the updater
+            -- handed to `onPaginationChange`.
+            , test "should invoke onPaginationChange when off the default page" <|
+                \_ ->
+                    Table.resetPageIndex config (at { pageIndex = 2, pageSize = 10 })
+                        |> paginationOf
+                        |> Expect.equal { pageIndex = 0, pageSize = 10 }
+
+            -- adapted: `manualPagination` gates TanStack's scheduler, not the
+            -- reset; a caller that asks for the reset always gets it.
+            , test "should reset even for manual pagination when autoResetPageIndex opts back in" <|
+                \_ ->
+                    let
+                        moved : Table.State
+                        moved =
+                            Table.setPage (manual 3) 2 (at defaultPagination)
+                    in
+                    Expect.equal
+                        ( (paginationOf moved).pageIndex
+                        , (paginationOf (Table.resetPageIndex (manual 3) moved)).pageIndex
+                        )
+                        ( 2, 0 )
+
+            -- excluded: "should not reset when manualPagination is set".
+            --   The assertion is that no reset happens; here the reset is the
+            --   caller's own call, so there is no scheduler for
+            --   `manualPagination` to gate.
+            ]
         ]
 
 

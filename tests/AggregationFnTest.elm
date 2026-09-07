@@ -138,10 +138,21 @@ suite =
                             (run AggregationFn.last [ str "a", str "b", Value.Null ])
                     ]
                     ()
-
-        -- excluded: "preserves custom definition result inference" is a
-        -- TypeScript type-inference test that joins the fake rows' ids; Elm
-        -- aggregations see values, not rows, and have no inference to check.
+        , -- adapted: an Elm aggregation sees values, not rows, so the custom
+          -- fn joins the two values (`1,2`) where the vitest joins the two
+          -- fake row ids (`0,1`); there is no type inference to check.
+          test "preserves custom definition result inference" <|
+            \_ ->
+                let
+                    joined : AggregationFn
+                    joined =
+                        AggregationFn.custom
+                            (\values ->
+                                Value.String
+                                    (String.join "," (List.map Value.toString values))
+                            )
+                in
+                run joined [ num 1, num 2 ] |> Expect.equal (str "1,2")
         ]
 
 
