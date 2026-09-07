@@ -199,6 +199,21 @@ Running log for the Elm port of TanStack Table core. See `SPEC.md` for the plan.
 - Bench unchanged within noise: meta dictionaries are only built when a
   column has a meta-producing filter.
 
+### Column resizing
+
+- Merged. `State.columnResizing` (TanStack's `columnSizingInfo` slice),
+  `Config.enableColumnResizing`, `columnResizeMode` (`resizeOnChange` /
+  `resizeOnEnd`, default `resizeOnEnd` as in TanStack),
+  `columnResizeDirection` (`resizeLtr` / `resizeRtl`), `Column.enableResizing`,
+  and the pure transitions `startColumnResize`, `updateColumnResize`,
+  `endColumnResize` that TanStack's `getResizeHandler` performs; the pointer
+  events, handle, and subscription stay with the caller.
+- Tests: `columnResizingFeature.utils.test.ts` 27 cases, 16 ported and
+  passing, 11 excluded (DOM listener and animation-frame plumbing), plus 5
+  Elm-only cases. Examples `column-resizing` and
+  `column-resizing-performant`, guide `guide/column-resizing`. See
+  `reports/column-resizing.md`.
+
 ## Performance (merged tree, `make bench`, node 24, `--optimize`, 7 runs)
 
 | case | shape | min | median | target |
@@ -263,6 +278,8 @@ file. Full per-case exclusion lists live in `reports/phase-N.md`.
 | `implementation/features/cell-selection/cellSelectionGeometry.test.ts` | 11 | 11 | 11 | 0 |
 | `implementation/features/cell-selection/cellSelectionRange.test.ts` | 23 | 23 | 23 | 0 |
 | `implementation/features/cell-selection/cellSelectionSpanAware.test.ts` | 16 | 16 | 16 | 0 |
+| `unit/features/column-resizing/columnResizingFeature.utils.test.ts` | 27 | 16 | 16 | 11 |
+| `implementation/core/autoReset.test.ts` (out of SPEC scope, ported anyway) | 34 | 32 | 32 | 2 |
 | **total (48 files)** | **1,137** | **1,084** | **1,084** | **53 (4.66%)** |
 
 The two files at 0% ported, `unit/core/table/constructTable.test.ts` and
