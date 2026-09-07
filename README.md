@@ -22,7 +22,9 @@ intermediate `RowModel`, or splice in your own manual stage.
 
 Docs: <https://elm-table-docs.pages.dev> (guides and API reference, mirroring the TanStack Table docs)
 
-Examples: <https://elm-table-examples.pages.dev> (29 ports of the TanStack Table examples, each with its Elm source)
+Examples: <https://elm-table-examples.pages.dev> (34 ports of the TanStack Table examples, each with its Elm source)
+
+Column resizing ships as pure resize state (`startColumnResize`, `updateColumnResize`, `endColumnResize`; you wire the pointer events) and virtualization pairs the sorted or expanded row model with `FabienHenon/elm-infinite-list-view`; see the [Column Resizing](https://elm-table-docs.pages.dev/guide/column-resizing/) and [Virtualization](https://elm-table-docs.pages.dev/guide/virtualization/) guides and their examples.
 
 Demo: <https://elm-table-demo.pages.dev> (5,000 generated keyword rows; sort, filter, group, expand, select, paginate, pin, with pipeline timings in the footer). Source in `demo/`, build with `make demo`.
 

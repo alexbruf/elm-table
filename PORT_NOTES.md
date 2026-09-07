@@ -173,10 +173,11 @@ Running log for the Elm port of TanStack Table core. See `SPEC.md` for the plan.
   docs navigation page for page; see `reports/docs-site.md` for the
   inventory.
 - Examples: <https://elm-table-examples.pages.dev>, built from
-  `examples-site/` (29 TanStack React examples ported one to one, each page
-  shows the Elm source; see `reports/examples-1.md` and `examples-2.md`).
-  Out of scope by design: column resizing by drag, virtualization, web
-  workers, and the component-library variants.
+  `examples-site/` (34 TanStack React examples ported one to one, each page
+  shows the Elm source; see `reports/examples-1.md`, `examples-2.md`,
+  `column-resizing.md`, and `virtualization.md`). Out of scope by design:
+  web workers, the framework-specific hooks, and the component-library
+  variants.
 - Hosting: Cloudflare Pages. `elm-table-demo` and `elm-table-docs` live on
   account `8883f7ea…`, `elm-table-examples` on account `26108e32…` (the
   first account's project list was not visible through the API token at
@@ -213,6 +214,19 @@ Running log for the Elm port of TanStack Table core. See `SPEC.md` for the plan.
   Elm-only cases. Examples `column-resizing` and
   `column-resizing-performant`, guide `guide/column-resizing`. See
   `reports/column-resizing.md`.
+
+### Virtualization
+
+- Merged. Three examples: `virtualized-rows` (50,000 rows) and
+  `virtualized-infinite-scrolling` on `FabienHenon/elm-infinite-list-view`
+  3.3.1 (it owns the scroll container and the visible window; the sorted
+  row model feeds it, pagination is bypassed), and `virtualized-columns`
+  (1,000 columns × 200 rows) on a small fixed-size window helper because
+  the library has no horizontal mode; it reads `getColumnStart`,
+  `getColumnSize`, and `totalSize`. `dominikmayer/elm-virtual-list`, named
+  in SPEC, was not chosen; the report explains. DOM stays at 22 to 31 rows
+  at every scroll position. Guide: `guide/virtualization`. See
+  `reports/virtualization.md`.
 
 ## Performance (merged tree, `make bench`, node 24, `--optimize`, 7 runs)
 
