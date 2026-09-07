@@ -148,7 +148,7 @@ personGenerator =
                     )
                     (pick Single [ Relationship, Complicated ])
                     (Random.int 0 100)
-                    (Random.int 1262304000000 1767225600000)
+                    (Random.map (\day -> 1262304000000 + day * 86400000) (Random.int 0 5843))
                     (Random.int 0 9999)
             )
 
