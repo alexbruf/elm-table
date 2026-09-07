@@ -41,10 +41,10 @@ it.
 ```elm snippet=ColumnResizingGuide.elm#onEndConfig
 ```
 
-TanStack defaults to `"onEnd"` because an `"onChange"` drag re-renders a whole
-React table on every frame. Elm's virtual DOM diff makes that much cheaper, so
-the default here is `resizeOnChange`; switch to `resizeOnEnd` for a table with
-expensive cells.
+The default is `resizeOnEnd`, as in TanStack, where an `"onChange"` drag
+re-renders a whole React table on every frame. Elm's virtual DOM diff makes
+that much cheaper, so `resizeOnChange` is a reasonable choice for most tables;
+keep `resizeOnEnd` for tables with expensive cells.
 
 ## Column resize direction
 

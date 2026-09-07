@@ -32,9 +32,19 @@ import Test exposing (Test, describe, test)
 {-| `makeTable(1)`: the generated `Person` columns, every one at the default
 size of 150.
 -}
+
+
+{-| TanStack's resizing tests exercise `onChange` mode unless they say
+otherwise; the package default is `resizeOnEnd`, as in TanStack.
+-}
 config : Table.Config Person
 config =
-    Fixtures.config
+    let
+        base : Table.Config Person
+        base =
+            Fixtures.config
+    in
+    { base | columnResizeMode = Table.resizeOnChange }
 
 
 state : Table.State

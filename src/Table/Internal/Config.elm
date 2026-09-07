@@ -86,7 +86,7 @@ config columns =
     , autoResetSorting = Nothing
     , autoResetCellSelection = Nothing
     , enableColumnResizing = True
-    , columnResizeMode = ResizeOnChange
+    , columnResizeMode = ResizeOnEnd
     , columnResizeDirection = Ltr
     }
 

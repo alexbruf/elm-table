@@ -648,6 +648,13 @@ Fields, with the defaults [`config`](#config) sets:
   - `enableCellSpanning`, `enableCellSelection`, `enableCellRangeSelection`,
     `enableMultiCellRangeSelection : Bool`, all `True`;
     `cellSelectionFilter : Maybe (Cell -> Bool)`, `Nothing`
+  - `enableColumnResizing : Bool`, `True`; `columnResizeMode : ColumnResizeMode`,
+    [`resizeOnEnd`](#resizeOnEnd) (TanStack's default);
+    `columnResizeDirection : ColumnResizeDirection`, [`resizeLtr`](#resizeLtr)
+  - `manualAggregation : Bool`, `False`; `autoResetAll`, `autoResetPageIndex`,
+    `autoResetExpanded`, `autoResetSorting`, `autoResetCellSelection : Maybe Bool`,
+    all `Nothing` (TanStack's automatic rule: reset unless the matching
+    `manual*` flag is set)
 
 -}
 type alias Config row =
@@ -3872,8 +3879,7 @@ type alias ColumnResizeDirection =
     Types.ColumnResizeDirection
 
 
-{-| Commit the new widths on every pointer move. This is
-`Config.columnResizeMode`'s default here.
+{-| Commit the new widths on every pointer move.
 -}
 resizeOnChange : ColumnResizeMode
 resizeOnChange =

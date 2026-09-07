@@ -92,8 +92,8 @@ Table: 411/411 entries`, 0 broken internal links).
 ### Fields added
 
 - `Config.enableColumnResizing : Bool` (default `True`)
-- `Config.columnResizeMode : ColumnResizeMode` (default `ResizeOnChange` -
-  see semantic differences)
+- `Config.columnResizeMode : ColumnResizeMode` (default `ResizeOnEnd`, as in
+  TanStack; the orchestrator flipped it from `ResizeOnChange` after review)
 - `Config.columnResizeDirection : ColumnResizeDirection` (default `Ltr`)
 - `Column`'s internal fields record gets `enableResizing : Bool` (default
   `True`), set by `withEnableResizing`
@@ -106,17 +106,13 @@ include the new `columnResizing` field in the expected initial `State`.
 
 ## Semantic differences
 
-1. **`columnResizeMode` default.** TanStack's `getDefaultTableOptions`
-   returns `columnResizeMode: 'onEnd'`. This port defaults to
-   `resizeOnChange`. Reasoning (documented in the guide and in
-   `features-api.md`): TanStack defaults to `onEnd` because an `onChange`
-   drag re-renders a whole React table every frame; Elm's virtual DOM diff
-   makes that much cheaper, so `onChange` is the friendlier default here,
-   with `onEnd` offered for tables with expensive cells. This is a
-   deliberate API decision, not an oversight - it is called out in three
-   places (`docs-site/content/guide/column-resizing.md`, the curated
-   `ColumnResizeMode` row in `docs-site/content/reference/features-api.md`,
-   and here).
+1. **`columnResizeMode` default.** `resizeOnEnd`, matching TanStack's
+   `getDefaultTableOptions` (`columnResizeMode: 'onEnd'`). The first draft
+   defaulted to `resizeOnChange` on the grounds that Elm's virtual DOM makes
+   per-frame commits cheap; the orchestrator reverted that so TanStack users
+   get the behaviour they expect, and the guide recommends `resizeOnChange`
+   as an opt-in instead.
+
 2. **`isResizingColumn : false | string` -> `Maybe String`.** Same pattern
    used throughout the port for TanStack's `false`-as-sentinel unions.
 3. **No DOM, no closure.** `header.getResizeHandler()` is split into three
